@@ -3,7 +3,7 @@
 export const siteConfig = {
   // 1. 网站标题与博主信息
   title: "colorfulbird3 の 宝藏之地",
-  faviconUrl: "https://bu.dusays.com/2026/03/24/69c1e38ac1846.jpg",
+  faviconUrl: "/uploads/7edc4d377b074af6953799e3e22f359a.png",
   authorName: "colorfulbird3",
   bio: "一个在GTI服役的普通无名客，日常接取治安局的任务去清理以骸，最近在跟普罗米修斯学习机器学习和神经网络（bushi）",
 
