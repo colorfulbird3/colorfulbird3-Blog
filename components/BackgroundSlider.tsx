@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { siteConfig } from '../siteConfig';
 
-const SWITCH_INTERVAL = 15000;
-const FADE_DURATION = 900;
+const SWITCH_INTERVAL = 10000;
+const FADE_DURATION = 2000;
 
 export default function BackgroundSlider() {
-  const images = useMemo(() => siteConfig.bgImages || [], []);
+  const images = siteConfig.bgImages || [];
   const [index, setIndex] = useState(0);
   const [previousIndex, setPreviousIndex] = useState<number | null>(null);
 
@@ -32,10 +32,6 @@ export default function BackgroundSlider() {
     const image = new Image();
     image.decoding = 'async';
     image.src = images[next];
-
-    if (image.decode) {
-      image.decode().catch(() => {});
-    }
   }, [index, images]);
 
   useEffect(() => {
@@ -43,21 +39,29 @@ export default function BackgroundSlider() {
 
     const timer = window.setTimeout(() => {
       setPreviousIndex(null);
-    }, FADE_DURATION + 80);
+    }, FADE_DURATION + 120);
 
     return () => window.clearTimeout(timer);
   }, [previousIndex]);
 
   if (images.length === 0) return null;
 
-  const layer = (src: string, key: string, extra = '') => (
-    <img
+  const renderLayer = (
+    img: string,
+    key: string,
+    className: string,
+    animation?: string
+  ) => (
+    <div
       key={key}
-      src={src}
-      alt=""
-      decoding="async"
-      draggable={false}
-      className={`absolute inset-0 w-full h-full object-cover select-none ${extra}`}
+      className={`absolute inset-0 transform-gpu ${className}`}
+      style={{
+        backgroundImage: `url(${img})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        animation,
+        willChange: animation ? 'opacity' : undefined,
+      }}
       aria-hidden="true"
     />
   );
@@ -70,26 +74,23 @@ export default function BackgroundSlider() {
     >
       {previousIndex !== null &&
         previousIndex !== index &&
-        layer(
+        renderLayer(
           images[previousIndex],
           `previous-${previousIndex}`,
           'z-0 opacity-100'
         )}
 
-      {layer(
+      {renderLayer(
         images[index],
         `current-${index}`,
+        'z-[1]',
         previousIndex !== null
-          ? 'z-[1] bg-fade-steady'
-          : 'z-[1]'
+          ? `bgFadeIn60 ${FADE_DURATION}ms ease-in-out both`
+          : undefined
       )}
 
       <style>{`
-        .bg-fade-steady {
-          animation: bgFadeSteady ${FADE_DURATION}ms ease-out both;
-        }
-
-        @keyframes bgFadeSteady {
+        @keyframes bgFadeIn60 {
           from { opacity: 0; }
           to { opacity: 1; }
         }

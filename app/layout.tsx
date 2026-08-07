@@ -16,9 +16,6 @@ import CyberCat from '../components/CyberCat';
 import DanmakuBackground from '../components/DanmakuBackground';
 
 import MobileBackButton from '../components/MobileBackButton';
-import RoutePrefetcher from "../components/performance/RoutePrefetcher";
-import InteractionPerformance from "../components/performance/InteractionPerformance";
-
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
@@ -138,12 +135,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
 
         </ThemeProvider>
               <FPSCounter />
-              <InteractionPerformance />
-        <RoutePrefetcher />
-      </body>
+</body>
     </html>
   );
 }
+
 
 
 

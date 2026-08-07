@@ -2,117 +2,138 @@
 
 import { useEffect, useRef } from 'react';
 
-type Ripple = {
+class Ripple {
   x: number;
   y: number;
-  radius: number;
-  opacity: number;
-  velocity: number;
-};
+  r = 0;
+  maxR = 60;
+  opacity = 0.6;
+  velocity = 2.5;
+
+  constructor(x: number, y: number) {
+    this.x = x;
+    this.y = y;
+  }
+
+  update() {
+    this.r += this.velocity;
+    this.velocity *= 0.96;
+    this.opacity -= 0.015;
+  }
+}
 
 export default function ClickEffect() {
-  const ref = useRef<HTMLCanvasElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    const canvas = ref.current;
+    const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d', {
-      alpha: true,
-      desynchronized: true,
-    });
-
+    const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return;
 
-    let width = 1;
-    let height = 1;
-    let rafId: number | null = null;
-    let lastTime = 0;
-
     const ripples: Ripple[] = [];
+    let rafId: number | null = null;
+    let resizeRaf: number | null = null;
 
     const resize = () => {
-      width = Math.max(1, window.innerWidth);
-      height = Math.max(1, window.innerHeight);
+      if (resizeRaf !== null) cancelAnimationFrame(resizeRaf);
 
-      canvas.width = width;
-      canvas.height = height;
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${height}px`;
+      resizeRaf = requestAnimationFrame(() => {
+        const dpr = Math.min(window.devicePixelRatio || 1, 1.25);
+
+        canvas.width = Math.max(1, Math.floor(window.innerWidth * dpr));
+        canvas.height = Math.max(1, Math.floor(window.innerHeight * dpr));
+        canvas.style.width = `${window.innerWidth}px`;
+        canvas.style.height = `${window.innerHeight}px`;
+
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        resizeRaf = null;
+      });
     };
 
-    const stop = () => {
-      if (rafId !== null) {
-        cancelAnimationFrame(rafId);
-        rafId = null;
-      }
-      lastTime = 0;
+    const drawRipple = (ripple: Ripple) => {
+      ctx.beginPath();
+      ctx.arc(ripple.x, ripple.y, ripple.r, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(129, 140, 248, ${Math.max(0, ripple.opacity)})`;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(ripple.x, ripple.y, ripple.r * 0.5, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(129, 140, 248, ${Math.max(0, ripple.opacity * 0.26)})`;
+      ctx.fill();
     };
 
-    const draw = (now: number) => {
-      rafId = requestAnimationFrame(draw);
+    const animate = () => {
+      rafId = null;
+      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
 
-      const dt = lastTime === 0 ? 1 / 60 : Math.min((now - lastTime) / 1000, 0.033);
-      lastTime = now;
+      if (ripples.length === 0) return;
 
-      ctx.clearRect(0, 0, width, height);
+      ctx.shadowBlur = 7;
+      ctx.shadowColor = 'rgba(129, 140, 248, 0.35)';
 
       for (let i = ripples.length - 1; i >= 0; i--) {
-        const r = ripples[i];
+        const ripple = ripples[i];
+        ripple.update();
+        drawRipple(ripple);
 
-        r.radius += r.velocity * dt * 60;
-        r.opacity -= dt * 0.85;
-
-        ctx.beginPath();
-        ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(129,140,248,${Math.max(0, r.opacity)})`;
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        if (r.opacity <= 0 || r.radius >= 64) {
+        if (ripple.opacity <= 0 || ripple.r >= ripple.maxR) {
           ripples.splice(i, 1);
         }
       }
 
-      if (ripples.length === 0) {
-        ctx.clearRect(0, 0, width, height);
-        stop();
+      if (ripples.length > 0 && !document.hidden) {
+        rafId = requestAnimationFrame(animate);
+      } else if (ripples.length === 0) {
+        ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
       }
     };
 
-    const click = (event: MouseEvent) => {
-      if (ripples.length >= 5) ripples.shift();
+    const ensureAnimating = () => {
+      if (rafId === null && ripples.length > 0 && !document.hidden) {
+        rafId = requestAnimationFrame(animate);
+      }
+    };
 
-      ripples.push({
-        x: event.clientX,
-        y: event.clientY,
-        radius: 0,
-        opacity: 0.58,
-        velocity: 2.5,
-      });
+    const handleClick = (e: MouseEvent) => {
+      if (ripples.length >= 8) ripples.shift();
+      ripples.push(new Ripple(e.clientX, e.clientY));
+      ensureAnimating();
+    };
 
-      if (rafId === null) {
-        rafId = requestAnimationFrame(draw);
+    const handleVisibility = () => {
+      if (document.hidden) {
+        if (rafId !== null) {
+          cancelAnimationFrame(rafId);
+          rafId = null;
+        }
+      } else {
+        ensureAnimating();
       }
     };
 
     window.addEventListener('resize', resize, { passive: true });
-    window.addEventListener('click', click, { passive: true });
+    window.addEventListener('click', handleClick, { passive: true });
+    document.addEventListener('visibilitychange', handleVisibility);
 
     resize();
 
     return () => {
-      stop();
       window.removeEventListener('resize', resize);
-      window.removeEventListener('click', click);
+      window.removeEventListener('click', handleClick);
+      document.removeEventListener('visibilitychange', handleVisibility);
+
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      if (resizeRaf !== null) cancelAnimationFrame(resizeRaf);
     };
   }, []);
 
   return (
     <canvas
-      ref={ref}
+      ref={canvasRef}
       className="fixed inset-0 pointer-events-none z-[9999]"
-      style={{ contain: 'strict' }}
       aria-hidden="true"
     />
   );
