@@ -1,25 +1,20 @@
 "use client";
 
 import { useEffect, useRef } from 'react';
-import { animationScheduler } from './effects/AnimationScheduler';
 
-interface Ripple {
+type Ripple = {
   x: number;
   y: number;
-  r: number;
-  maxR: number;
+  radius: number;
   opacity: number;
   velocity: number;
-}
-
-const MAX_RIPPLES = 8;
-const MAX_DPR = 1.2;
+};
 
 export default function ClickEffect() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
+    const canvas = ref.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d', {
@@ -31,183 +26,93 @@ export default function ClickEffect() {
 
     let width = 1;
     let height = 1;
-    let resizeRaf: number | null = null;
-    let unsubscribeFrame: (() => void) | null = null;
+    let rafId: number | null = null;
+    let lastTime = 0;
 
     const ripples: Ripple[] = [];
 
     const resize = () => {
-      if (resizeRaf !== null) {
-        cancelAnimationFrame(resizeRaf);
-      }
+      width = Math.max(1, window.innerWidth);
+      height = Math.max(1, window.innerHeight);
 
-      resizeRaf = requestAnimationFrame(() => {
-        width = Math.max(1, window.innerWidth);
-        height = Math.max(1, window.innerHeight);
-
-        const dpr = Math.min(
-          window.devicePixelRatio || 1,
-          MAX_DPR
-        );
-
-        canvas.width = Math.floor(width * dpr);
-        canvas.height = Math.floor(height * dpr);
-
-        canvas.style.width = `${width}px`;
-        canvas.style.height = `${height}px`;
-
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        resizeRaf = null;
-      });
+      canvas.width = width;
+      canvas.height = height;
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
     };
 
-    const stopFrameSubscription = () => {
-      if (unsubscribeFrame) {
-        unsubscribeFrame();
-        unsubscribeFrame = null;
+    const stop = () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
       }
+      lastTime = 0;
     };
 
-    const draw = (
-      _timeMs: number,
-      deltaSeconds: number
-    ) => {
-      if (document.hidden) return;
+    const draw = (now: number) => {
+      rafId = requestAnimationFrame(draw);
+
+      const dt = lastTime === 0 ? 1 / 60 : Math.min((now - lastTime) / 1000, 0.033);
+      lastTime = now;
 
       ctx.clearRect(0, 0, width, height);
 
-      const frameScale = deltaSeconds * 60;
+      for (let i = ripples.length - 1; i >= 0; i--) {
+        const r = ripples[i];
 
-      for (
-        let index = ripples.length - 1;
-        index >= 0;
-        index--
-      ) {
-        const ripple = ripples[index];
-
-        ripple.r +=
-          ripple.velocity * frameScale;
-
-        ripple.velocity *= Math.pow(
-          0.96,
-          frameScale
-        );
-
-        ripple.opacity -=
-          0.015 * frameScale;
+        r.radius += r.velocity * dt * 60;
+        r.opacity -= dt * 0.85;
 
         ctx.beginPath();
-        ctx.arc(
-          ripple.x,
-          ripple.y,
-          ripple.r,
-          0,
-          Math.PI * 2
-        );
-
-        ctx.strokeStyle = `rgba(129, 140, 248, ${Math.max(
-          0,
-          ripple.opacity
-        )})`;
-
+        ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(129,140,248,${Math.max(0, r.opacity)})`;
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        ctx.beginPath();
-        ctx.arc(
-          ripple.x,
-          ripple.y,
-          ripple.r * 0.5,
-          0,
-          Math.PI * 2
-        );
-
-        ctx.fillStyle = `rgba(129, 140, 248, ${Math.max(
-          0,
-          ripple.opacity * 0.3
-        )})`;
-
-        ctx.fill();
-
-        if (
-          ripple.opacity <= 0 ||
-          ripple.r >= ripple.maxR
-        ) {
-          ripples.splice(index, 1);
+        if (r.opacity <= 0 || r.radius >= 64) {
+          ripples.splice(i, 1);
         }
       }
 
       if (ripples.length === 0) {
         ctx.clearRect(0, 0, width, height);
-        stopFrameSubscription();
+        stop();
       }
     };
 
-    const ensureFrameSubscription = () => {
-      if (!unsubscribeFrame) {
-        // 点击反馈属于关键交互，滚动时也保持原生刷新率。
-        unsubscribeFrame =
-          animationScheduler.subscribe(draw, {
-            priority: 'critical',
-            maxFps: Number.POSITIVE_INFINITY,
-          });
-      }
-    };
-
-    const handleClick = (event: MouseEvent) => {
-      if (ripples.length >= MAX_RIPPLES) {
-        ripples.shift();
-      }
+    const click = (event: MouseEvent) => {
+      if (ripples.length >= 5) ripples.shift();
 
       ripples.push({
         x: event.clientX,
         y: event.clientY,
-        r: 0,
-        maxR: 60,
-        opacity: 0.6,
+        radius: 0,
+        opacity: 0.58,
         velocity: 2.5,
       });
 
-      ensureFrameSubscription();
+      if (rafId === null) {
+        rafId = requestAnimationFrame(draw);
+      }
     };
 
-    window.addEventListener('resize', resize, {
-      passive: true,
-    });
-
-    window.addEventListener('click', handleClick, {
-      passive: true,
-    });
+    window.addEventListener('resize', resize, { passive: true });
+    window.addEventListener('click', click, { passive: true });
 
     resize();
 
     return () => {
-      stopFrameSubscription();
-
-      window.removeEventListener(
-        'resize',
-        resize
-      );
-
-      window.removeEventListener(
-        'click',
-        handleClick
-      );
-
-      if (resizeRaf !== null) {
-        cancelAnimationFrame(resizeRaf);
-      }
+      stop();
+      window.removeEventListener('resize', resize);
+      window.removeEventListener('click', click);
     };
   }, []);
 
   return (
     <canvas
-      ref={canvasRef}
+      ref={ref}
       className="fixed inset-0 pointer-events-none z-[9999]"
-      style={{
-        contain: 'strict',
-        transform: 'translateZ(0)',
-      }}
+      style={{ contain: 'strict' }}
       aria-hidden="true"
     />
   );
