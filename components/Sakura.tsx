@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useState } from 'react';
+
+import { useMemo } from 'react';
 
 interface Petal {
   id: number;
@@ -7,47 +8,62 @@ interface Petal {
   size: number;
   duration: number;
   delay: number;
+  drift: number;
 }
 
-export default function Sakura() {
-  const [petals, setPetals] = useState<Petal[]>([]);
+const PETAL_COUNT = 16;
 
-  useEffect(() => {
-    const generated = Array.from({ length: 40 }).map((_, i) => ({
-      id: i,
-      left: `${Math.random() * 100}%`,
-      size: 8 + Math.random() * 12, // 8px 到 20px 大小的花瓣
-      duration: 6 + Math.random() * 8, // 飘落时间 6-14 秒
-      delay: Math.random() * -15, // 随机错开下落时间
-    }));
-    setPetals(generated);
-  }, []);
+export default function Sakura() {
+  const petals = useMemo<Petal[]>(
+    () =>
+      Array.from({ length: PETAL_COUNT }).map((_, i) => ({
+        id: i,
+        left: `${Math.random() * 100}%`,
+        size: 8 + Math.random() * 12,
+        duration: 7 + Math.random() * 8,
+        delay: Math.random() * -15,
+        drift: 9 + Math.random() * 10,
+      })),
+    []
+  );
 
   return (
-    <div className="fixed inset-0 w-full h-full pointer-events-none z-10 overflow-hidden">
+    <div
+      className="fixed inset-0 w-full h-full pointer-events-none z-10 overflow-hidden"
+      style={{ contain: 'strict' }}
+      aria-hidden="true"
+    >
       <style>{`
-        @keyframes sakuraFall {
-          0% { transform: translate(0, -10vh) rotate(0deg); opacity: 0; }
+        @keyframes sakuraFall60 {
+          0% {
+            transform: translate3d(0, -12vh, 0) rotate(0deg);
+            opacity: 0;
+          }
           10% { opacity: 1; }
-          80% { opacity: 1; }
-          100% { transform: translate(15vw, 110vh) rotate(360deg); opacity: 0; }
+          82% { opacity: .95; }
+          100% {
+            transform: translate3d(var(--sakura-drift), 112vh, 0) rotate(360deg);
+            opacity: 0;
+          }
         }
       `}</style>
 
-      {petals.map(p => (
+      {petals.map((p) => (
         <div
           key={p.id}
-          className="absolute top-0 bg-pink-300/70 shadow-[0_0_5px_rgba(255,182,193,0.6)]"
+          className="absolute top-0 bg-pink-300/70 shadow-[0_0_4px_rgba(255,182,193,0.45)]"
           style={{
             left: p.left,
             width: `${p.size}px`,
             height: `${p.size * 1.2}px`,
-            // 樱花特有的圆角形状
             borderRadius: '100% 0 100% 0',
-            animation: `sakuraFall ${p.duration}s linear infinite`,
+            animation: `sakuraFall60 ${p.duration}s linear infinite`,
             animationDelay: `${p.delay}s`,
+            willChange: 'transform, opacity',
+            transform: 'translateZ(0)',
+            ['--sakura-drift' as any]: `${p.drift}vw`,
           }}
-        ></div>
+        />
       ))}
     </div>
   );

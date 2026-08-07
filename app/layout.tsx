@@ -1,4 +1,4 @@
-import 'katex/dist/katex.min.css';
+﻿import 'katex/dist/katex.min.css';
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Noto_Serif_SC } from "next/font/google";
 import "./globals.css";
@@ -8,6 +8,7 @@ import { MusicProvider } from "../components/MusicProvider";
 import FloatingPlayer from "../components/FloatingPlayer";
 import { siteConfig } from "../siteConfig";
 import ClickEffect from "../components/ClickEffect";
+import FPSCounter from "../components/FPSCounter";
 import BackgroundSlider from "../components/BackgroundSlider";
 import GlobalToolbox from "../components/GlobalToolbox";
 import SplashScreen from "../components/SplashScreen";
@@ -15,6 +16,8 @@ import CyberCat from '../components/CyberCat';
 import DanmakuBackground from '../components/DanmakuBackground';
 
 import MobileBackButton from '../components/MobileBackButton';
+import RoutePrefetcher from "../components/performance/RoutePrefetcher";
+import InteractionPerformance from "../components/performance/InteractionPerformance";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -74,10 +77,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                 <div className="absolute inset-0 z-[-9] bg-white/30 dark:bg-slate-900/40 backdrop-blur-md transition-colors duration-1000"></div>
 
                 <div
-                  className="absolute inset-0 z-[-8] opacity-60 dark:opacity-20 mix-blend-color transition-opacity duration-1000 transform-gpu"
+                  className="absolute inset-[-12%] z-[-8] opacity-60 dark:opacity-20 mix-blend-color transition-opacity duration-1000 transform-gpu"
                   style={{
                     background: `linear-gradient(-45deg, ${siteConfig.themeColors.join(', ')})`,
-                    backgroundSize: '400% 400%',
+                    backgroundSize: '140% 140%',
+                    willChange: 'transform',
                     animation: 'gradientMove 15s ease infinite' // 🌟 全端保留渐变流动
                   }}
                 ></div>
@@ -121,9 +125,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
 
             <style suppressHydrationWarning dangerouslySetInnerHTML={{ __html: `
               @keyframes gradientMove { 
-                0% { background-position: 0% 50%; } 
-                50% { background-position: 100% 50%; } 
-                100% { background-position: 0% 50%; } 
+                0% { transform: translate3d(-3%, -2%, 0) scale(1.04); } 
+                50% { transform: translate3d(3%, 2%, 0) scale(1.07); } 
+                100% { transform: translate3d(-3%, -2%, 0) scale(1.04); } 
               }
             `}} />
           </MusicProvider>
@@ -133,7 +137,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           </div>
 
         </ThemeProvider>
+              <FPSCounter />
+              <InteractionPerformance />
+        <RoutePrefetcher />
       </body>
     </html>
   );
 }
+
+

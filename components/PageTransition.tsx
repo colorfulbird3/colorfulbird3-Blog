@@ -1,19 +1,38 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { ReactNode } from "react";
+import { ReactNode } from 'react';
 
-export default function PageTransition({ children }: { children: ReactNode }) {
+/**
+ * 用浏览器原生 compositor 动画替代整页 Framer Motion。
+ * 视觉仍然是“轻微上移 + 淡入”，但减少路由进入时的 JS 动画开销。
+ */
+export default function PageTransition({
+  children,
+}: {
+  children: ReactNode;
+}) {
   return (
-    <motion.div
-      // 刚加载页面时：往下偏 20px，完全透明
-      initial={{ y: 20, opacity: 0 }}
-      // 加载完毕后：回到原位，完全不透明
-      animate={{ y: 0, opacity: 1 }}
-      // 动画怎么演：用优雅的弹性物理动画，持续 0.8 秒
-      transition={{ ease: "easeOut", duration: 0.8 }}
-    >
+    <div className="page-transition-120">
       {children}
-    </motion.div>
+
+      <style jsx>{`
+        .page-transition-120 {
+          animation: pageEnter120 420ms
+            cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        @keyframes pageEnter120 {
+          from {
+            opacity: 0;
+            transform: translate3d(0, 16px, 0);
+          }
+
+          to {
+            opacity: 1;
+            transform: translate3d(0, 0, 0);
+          }
+        }
+      `}</style>
+    </div>
   );
 }

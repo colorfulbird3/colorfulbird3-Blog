@@ -1,5 +1,19 @@
 "use client";
+
 import { useEffect, useRef } from 'react';
+import { animationScheduler } from './effects/AnimationScheduler';
+
+interface Ripple {
+  x: number;
+  y: number;
+  r: number;
+  maxR: number;
+  opacity: number;
+  velocity: number;
+}
+
+const MAX_RIPPLES = 8;
+const MAX_DPR = 1.2;
 
 export default function ClickEffect() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -7,87 +21,182 @@ export default function ClickEffect() {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+
+    const ctx = canvas.getContext('2d', {
+      alpha: true,
+      desynchronized: true,
+    });
+
     if (!ctx) return;
 
-    let ripples: any[] = [];
+    let width = 1;
+    let height = 1;
+    let resizeRaf: number | null = null;
+    let unsubscribeFrame: (() => void) | null = null;
+
+    const ripples: Ripple[] = [];
 
     const resize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      if (resizeRaf !== null) {
+        cancelAnimationFrame(resizeRaf);
+      }
+
+      resizeRaf = requestAnimationFrame(() => {
+        width = Math.max(1, window.innerWidth);
+        height = Math.max(1, window.innerHeight);
+
+        const dpr = Math.min(
+          window.devicePixelRatio || 1,
+          MAX_DPR
+        );
+
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        resizeRaf = null;
+      });
     };
-    window.addEventListener('resize', resize);
-    resize();
 
-    class Ripple {
-      x: number; y: number;
-      r: number;        // 半径
-      maxR: number;     // 最大半径
-      opacity: number;  // 透明度
-      velocity: number; // 扩散速度
-
-      constructor(x: number, y: number) {
-        this.x = x;
-        this.y = y;
-        this.r = 0;
-        this.maxR = 60;   // 涟漪扩散的大小，60 比较克制
-        this.opacity = 0.6;
-        this.velocity = 2.5;
+    const stopFrameSubscription = () => {
+      if (unsubscribeFrame) {
+        unsubscribeFrame();
+        unsubscribeFrame = null;
       }
+    };
 
-      update() {
-        this.r += this.velocity;
-        // 随着半径变大，扩散速度减慢（物理模拟）
-        this.velocity *= 0.96;
-        // 透明度线性衰减
-        this.opacity -= 0.015;
-      }
+    const draw = (
+      _timeMs: number,
+      deltaSeconds: number
+    ) => {
+      if (document.hidden) return;
 
-      draw() {
-        if (!ctx) return;
+      ctx.clearRect(0, 0, width, height);
+
+      const frameScale = deltaSeconds * 60;
+
+      for (
+        let index = ripples.length - 1;
+        index >= 0;
+        index--
+      ) {
+        const ripple = ripples[index];
+
+        ripple.r +=
+          ripple.velocity * frameScale;
+
+        ripple.velocity *= Math.pow(
+          0.96,
+          frameScale
+        );
+
+        ripple.opacity -=
+          0.015 * frameScale;
+
         ctx.beginPath();
-        ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
-        // 使用你主题里的靛蓝色，并带上动态透明度
-        ctx.strokeStyle = `rgba(129, 140, 248, ${this.opacity})`;
+        ctx.arc(
+          ripple.x,
+          ripple.y,
+          ripple.r,
+          0,
+          Math.PI * 2
+        );
+
+        ctx.strokeStyle = `rgba(129, 140, 248, ${Math.max(
+          0,
+          ripple.opacity
+        )})`;
+
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // 内部再加一个极淡的实心圆，增加“触碰感”
         ctx.beginPath();
-        ctx.arc(this.x, this.y, this.r * 0.5, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(129, 140, 248, ${this.opacity * 0.3})`;
+        ctx.arc(
+          ripple.x,
+          ripple.y,
+          ripple.r * 0.5,
+          0,
+          Math.PI * 2
+        );
+
+        ctx.fillStyle = `rgba(129, 140, 248, ${Math.max(
+          0,
+          ripple.opacity * 0.3
+        )})`;
+
         ctx.fill();
-      }
-    }
 
-    const handleClick = (e: MouseEvent) => {
-      ripples.push(new Ripple(e.clientX, e.clientY));
-    };
-
-    window.addEventListener('click', handleClick);
-
-    const animate = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // 增加全局模糊，让涟漪更有“云端”质感
-      ctx.shadowBlur = 15;
-      ctx.shadowColor = 'rgba(129, 140, 248, 0.5)';
-
-      for (let i = 0; i < ripples.length; i++) {
-        ripples[i].update();
-        ripples[i].draw();
-        if (ripples[i].opacity <= 0) {
-          ripples.splice(i, 1);
-          i--;
+        if (
+          ripple.opacity <= 0 ||
+          ripple.r >= ripple.maxR
+        ) {
+          ripples.splice(index, 1);
         }
       }
-      requestAnimationFrame(animate);
+
+      if (ripples.length === 0) {
+        ctx.clearRect(0, 0, width, height);
+        stopFrameSubscription();
+      }
     };
-    animate();
+
+    const ensureFrameSubscription = () => {
+      if (!unsubscribeFrame) {
+        // 点击反馈属于关键交互，滚动时也保持原生刷新率。
+        unsubscribeFrame =
+          animationScheduler.subscribe(draw, {
+            priority: 'critical',
+            maxFps: Number.POSITIVE_INFINITY,
+          });
+      }
+    };
+
+    const handleClick = (event: MouseEvent) => {
+      if (ripples.length >= MAX_RIPPLES) {
+        ripples.shift();
+      }
+
+      ripples.push({
+        x: event.clientX,
+        y: event.clientY,
+        r: 0,
+        maxR: 60,
+        opacity: 0.6,
+        velocity: 2.5,
+      });
+
+      ensureFrameSubscription();
+    };
+
+    window.addEventListener('resize', resize, {
+      passive: true,
+    });
+
+    window.addEventListener('click', handleClick, {
+      passive: true,
+    });
+
+    resize();
 
     return () => {
-      window.removeEventListener('resize', resize);
-      window.removeEventListener('click', handleClick);
+      stopFrameSubscription();
+
+      window.removeEventListener(
+        'resize',
+        resize
+      );
+
+      window.removeEventListener(
+        'click',
+        handleClick
+      );
+
+      if (resizeRaf !== null) {
+        cancelAnimationFrame(resizeRaf);
+      }
     };
   }, []);
 
@@ -95,6 +204,11 @@ export default function ClickEffect() {
     <canvas
       ref={canvasRef}
       className="fixed inset-0 pointer-events-none z-[9999]"
+      style={{
+        contain: 'strict',
+        transform: 'translateZ(0)',
+      }}
+      aria-hidden="true"
     />
   );
 }

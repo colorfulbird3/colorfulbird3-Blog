@@ -1,4 +1,4 @@
-import fs from 'fs';
+﻿import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
 import Link from 'next/link';
@@ -21,7 +21,7 @@ import { siteConfig } from '../../../siteConfig';
 import ClientSocials from '../../../components/ClientSocials';
 import ClientTOC from '../../../components/ClientTOC';
 import BackButton from '../../../components/BackButton';
-import Comments from '../../../components/Comments';
+import DeferredComments from '../../../components/DeferredComments';
 import SidebarLyric from '../../../components/SidebarLyric';
 
 export async function generateStaticParams() {
@@ -51,6 +51,12 @@ function extractToc(content: string) {
   return toc;
 }
 
+function optimizeArticleHtml(html: string) {
+  return html.replace(
+    /<img(?![^>]*\bloading=)/g,
+    '<img loading="lazy" decoding="async" fetchpriority="low"'
+  );
+}
 async function getPostData(slug: string) {
   const fullPath = path.join(process.cwd(), 'posts', `${slug}.md`);
   const fileContents = fs.readFileSync(fullPath, 'utf8');
@@ -102,7 +108,7 @@ async function getPostData(slug: string) {
 
   return {
     slug,
-    contentHtml: processedContent.toString(),
+    contentHtml: optimizeArticleHtml(processedContent.toString()),
     toc: extractToc(content),
     title: data.title,
     date: data.date,
@@ -135,9 +141,9 @@ export default async function Post({ params }: { params: Promise<{ slug: string 
       <PageTransition>
         <main className="w-[95%] md:w-[90%] max-w-6xl mx-auto mt-24 md:mt-28 flex flex-col lg:flex-row gap-6 md:gap-8 relative z-10">
 
-          <article className="flex-1 bg-white/60 dark:bg-slate-800/50 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/40 dark:border-white/10 overflow-hidden transition-colors duration-700">
+          <article className="flex-1 bg-white/60 dark:bg-slate-800/50 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/40 dark:border-white/10 overflow-hidden performance-paint-container transition-colors duration-700">
             <div className="w-full aspect-video bg-slate-200 dark:bg-slate-700 relative group">
-              <img src={postData.cover} alt="封面" className="w-full h-full object-cover opacity-90 transition-transform duration-1000 group-hover:scale-105" />
+              <img src={postData.cover} alt="封面" decoding="async" fetchPriority="high" className="w-full h-full object-cover opacity-90 transition-transform duration-1000 group-hover:scale-105" />
             </div>
 
             <div className="p-5 md:p-12 relative">
@@ -261,7 +267,7 @@ export default async function Post({ params }: { params: Promise<{ slug: string 
               </div>
 
               <div className="mt-12 md:mt-16">
-                <Comments />
+                <DeferredComments />
               </div>
 
             </div>

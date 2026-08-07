@@ -1,38 +1,100 @@
 "use client";
-import { useState, useEffect } from 'react';
+
+import { useEffect, useState } from 'react';
 import { siteConfig } from '../siteConfig';
 
+const SWITCH_INTERVAL = 10000;
+const FADE_DURATION = 2000;
+
 export default function BackgroundSlider() {
+  const images = siteConfig.bgImages || [];
   const [index, setIndex] = useState(0);
-  const images = siteConfig.bgImages;
+  const [previousIndex, setPreviousIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (images.length <= 1) return;
 
-    const timer = setInterval(() => {
-      setIndex((prev) => (prev + 1) % images.length);
-    }, 10000); // 10秒切换一次
+    const timer = window.setInterval(() => {
+      setIndex((current) => {
+        const next = (current + 1) % images.length;
+        setPreviousIndex(current);
+        return next;
+      });
+    }, SWITCH_INTERVAL);
 
-    return () => clearInterval(timer);
+    return () => window.clearInterval(timer);
   }, [images.length]);
 
+  useEffect(() => {
+    if (images.length <= 1) return;
+
+    const next = (index + 1) % images.length;
+    const image = new Image();
+    image.decoding = 'async';
+    image.src = images[next];
+  }, [index, images]);
+
+  useEffect(() => {
+    if (previousIndex === null) return;
+
+    const timer = window.setTimeout(() => {
+      setPreviousIndex(null);
+    }, FADE_DURATION + 120);
+
+    return () => window.clearTimeout(timer);
+  }, [previousIndex]);
+
+  if (images.length === 0) return null;
+
+  const renderLayer = (
+    img: string,
+    key: string,
+    className: string,
+    animation?: string
+  ) => (
+    <div
+      key={key}
+      className={`absolute inset-0 transform-gpu ${className}`}
+      style={{
+        backgroundImage: `url(${img})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        animation,
+        willChange: animation ? 'opacity' : undefined,
+      }}
+      aria-hidden="true"
+    />
+  );
+
   return (
-    <div className="absolute inset-0 z-[-10] overflow-hidden">
-      {images.map((img, i) => (
-        <div
-          key={img}
-          className="absolute inset-0 transition-opacity duration-[2000ms] ease-in-out transform-gpu"
-          style={{
-            backgroundImage: `url(${img})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            // 当前显示的图片 opacity 为 1，其他的为 0
-            opacity: i === index ? 1 : 0,
-            // 解决层级重叠导致的渲染压力
-            visibility: Math.abs(i - index) <= 1 || (i === images.length - 1 && index === 0) ? 'visible' : 'hidden'
-          }}
-        />
-      ))}
+    <div
+      className="absolute inset-0 z-[-10] overflow-hidden"
+      style={{ contain: 'strict' }}
+      aria-hidden="true"
+    >
+      {previousIndex !== null &&
+        previousIndex !== index &&
+        renderLayer(
+          images[previousIndex],
+          `previous-${previousIndex}`,
+          'z-0 opacity-100'
+        )}
+
+      {renderLayer(
+        images[index],
+        `current-${index}`,
+        'z-[1]',
+        previousIndex !== null
+          ? `bgFadeIn60 ${FADE_DURATION}ms ease-in-out both`
+          : undefined
+      )}
+
+      <style>{`
+        @keyframes bgFadeIn60 {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }
