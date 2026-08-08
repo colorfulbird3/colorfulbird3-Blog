@@ -1,45 +1,81 @@
 "use client";
 
-import { createContext, useContext, useState, useRef, useEffect, ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  ReactNode,
+} from 'react';
 import { siteConfig } from '../siteConfig';
+import { musicPlaylists, MusicTrack } from '../data/musicLibrary';
 
-// 【增强版 LRC 歌词解析】
 function parseLrc(lrcText: string) {
   if (!lrcText || lrcText.length > 30000) return [];
 
   const lines = lrcText.split(/\r?\n/);
-  const result = [];
+  const result: { time: number; text: string }[] = [];
 
-  for (let line of lines) {
-    const matches = [...line.matchAll(/\[(\d{2,}):(\d{2})(?:\.(\d{2,3}))?\]/g)];
-    if (matches.length > 0) {
-      let text = line.replace(/\[\d{2,}:\d{2}(?:\.\d{2,3})?\]/g, '').trim();
+  for (const line of lines) {
+    const matches = [
+      ...line.matchAll(/\[(\d{2,}):(\d{2})(?:[.:](\d{2,3}))?\]/g),
+    ];
 
-      // 剔除控制字符
-      const cleanText = text.replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200D\uFEFF]/g, "");
+    if (matches.length === 0) continue;
 
-      if (cleanText) {
-        for (const match of matches) {
-          const min = parseInt(match[1]);
-          const sec = parseInt(match[2]);
-          const ms = match[3] ? parseInt(match[3]) : 0;
-          const divisor = match[3] && match[3].length === 3 ? 1000 : 100;
-          const time = min * 60 + sec + ms / divisor;
-          result.push({ time, text: cleanText });
-        }
-      }
+    const cleanText = line
+      .replace(/\[\d{2,}:\d{2}(?:[.:]\d{2,3})?\]/g, '')
+      .replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200D\uFEFF]/g, '')
+      .trim();
+
+    if (!cleanText) continue;
+
+    for (const match of matches) {
+      const min = parseInt(match[1], 10);
+      const sec = parseInt(match[2], 10);
+      const fraction = match[3] || '';
+      const ms =
+        fraction.length === 3
+          ? parseInt(fraction, 10) / 1000
+          : fraction
+            ? parseInt(fraction, 10) / 100
+            : 0;
+
+      result.push({
+        time: min * 60 + sec + ms,
+        text: cleanText,
+      });
     }
   }
+
   return result.sort((a, b) => a.time - b.time);
 }
 
-// 🌟 1. 扩充 Context 类型，加入 MusicPage 需要的所有属性
 type PlayMode = 'loop' | 'single' | 'random';
 
+type Song = {
+  id: string;
+  title: string;
+  name?: string;
+  artist: string;
+  author?: string;
+  cover?: string;
+  pic?: string;
+  src: string;
+  lrc?: string;
+  lyric?: string;
+  lyrics?: { time: number; text: string }[];
+  source?: string;
+  sourcePlaylist?: string;
+  sourceTrackId?: string;
+};
+
 interface MusicContextType {
-  playlist: any[];
+  playlist: Song[];
   currentIndex: number;
-  currentSong: any; // 扩展了 lyrics 属性
+  currentSong?: Song;
   isPlaying: boolean;
   progress: number;
   currentTime: number;
@@ -55,6 +91,7 @@ interface MusicContextType {
   prevSong: () => void;
   handleSeek: (e: React.ChangeEvent<HTMLInputElement>) => void;
   playSong: (index: number) => void;
+  selectSong: (index: number) => void;
   setVolume: (value: number) => void;
   toggleMute: () => void;
   togglePlayMode: () => void;
@@ -62,18 +99,51 @@ interface MusicContextType {
 
 const MusicContext = createContext<MusicContextType | null>(null);
 
+function flattenLibrary() {
+  const result: Array<MusicTrack & { sourcePlaylist?: string }> = [];
+
+  for (const playlist of musicPlaylists || []) {
+    if (playlist.enabled === false) continue;
+
+    for (const track of playlist.tracks || []) {
+      if (track.enabled === false || track.playable === false) continue;
+
+      result.push({
+        ...track,
+        sourcePlaylist: playlist.name,
+      } as any);
+    }
+  }
+
+  return result;
+}
+
+function fallbackLegacyTracks(): Array<MusicTrack & { sourcePlaylist?: string }> {
+  const ids = siteConfig.cloudMusicIds || [];
+
+  return ids.map((id: string | number) => ({
+    id: `legacy_netease_${id}`,
+    title: '',
+    artist: '',
+    source: 'netease',
+    sourceId: String(id),
+    playableSource: 'netease',
+    playableId: String(id),
+    enabled: true,
+    sourcePlaylist: '旧版歌单',
+  })) as any;
+}
+
 export function MusicProvider({ children }: { children: ReactNode }) {
-  const [playlist, setPlaylist] = useState<any[]>([]);
+  const [playlist, setPlaylist] = useState<Song[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [lyrics, setLyrics] = useState<{ time: number; text: string }[]>([]);
-  const [currentLyric, setCurrentLyric] = useState("正在连接高可用神经云端...");
+  const [currentLyric, setCurrentLyric] = useState('正在连接音乐库...');
   const [isLoading, setIsLoading] = useState(true);
-
-  // 🌟 2. 新增音量和播放模式状态
   const [volume, setVolumeState] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [playMode, setPlayMode] = useState<PlayMode>('loop');
@@ -81,94 +151,196 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
-    let isMounted = true;
-    const fetchMusicData = async () => {
+    let alive = true;
+
+    async function load() {
+      setIsLoading(true);
+
       try {
-        const res = await fetch(`/api/music?ids=${siteConfig.cloudMusicIds.join(',')}`);
-        const rawResults = await res.json();
+        let tracks = flattenLibrary();
 
-        const mergedPlaylist = rawResults
-          .filter((song: any) => song && song.url && !song.error)
-          .map((song: any) => ({
-            id: song.id || Math.random().toString(),
-            title: song.name || '未知歌曲',
-            artist: song.artist || song.author || '未知歌手',
-            cover: song.cover || song.pic || 'https://bu.dusays.com/2026/03/24/69c24230a5ff8.jpg',
-            src: song.url,
-            lrcUrl: null,
-            lyrics: song.lrc ? parseLrc(song.lrc) : []
-          }));
-
-        if (isMounted) {
-          if (mergedPlaylist.length > 0) setPlaylist(mergedPlaylist);
-          else setCurrentLyric("云端链路受阻");
-          setIsLoading(false);
+        if (tracks.length === 0 && (musicPlaylists || []).length === 0) {
+          tracks = fallbackLegacyTracks();
         }
-      } catch (error) {
-        if (isMounted) { setCurrentLyric("网络初始化失败"); setIsLoading(false); }
+
+        const neteaseIds = Array.from(
+          new Set(
+            tracks
+              .map((track) => {
+                if (track.src) return null;
+
+                if (
+                  track.playableSource === 'netease' &&
+                  track.playableId
+                ) {
+                  return String(track.playableId);
+                }
+
+                if (track.source === 'netease' && track.sourceId) {
+                  return String(track.sourceId);
+                }
+
+                return null;
+              })
+              .filter(Boolean) as string[]
+          )
+        );
+
+        const neteaseMap = new Map<string, any>();
+
+        for (let start = 0; start < neteaseIds.length; start += 100) {
+          const batch = neteaseIds.slice(start, start + 100);
+
+          try {
+            const res = await fetch(`/api/music?ids=${batch.join(',')}`);
+            const songs = await res.json();
+
+            if (Array.isArray(songs)) {
+              for (const song of songs) {
+                if (song?.id) {
+                  neteaseMap.set(String(song.id), song);
+                }
+              }
+            }
+          } catch {
+            // 单个批次失败不影响本地歌曲。
+          }
+        }
+
+        const merged: Song[] = [];
+
+        for (const track of tracks) {
+          if (track.src) {
+            merged.push({
+              id: track.id,
+              title: track.title || '未知歌曲',
+              name: track.title || '未知歌曲',
+              artist: track.artist || '未知歌手',
+              author: track.artist || '未知歌手',
+              cover: track.cover || '',
+              pic: track.cover || '',
+              src: track.src,
+              lrc: track.lrc || '',
+              lyrics: track.lrc ? parseLrc(track.lrc) : [],
+              source: track.source,
+              sourcePlaylist: (track as any).sourcePlaylist,
+              sourceTrackId: track.sourceId,
+            });
+            continue;
+          }
+
+          let playableId = '';
+
+          if (
+            track.playableSource === 'netease' &&
+            track.playableId
+          ) {
+            playableId = String(track.playableId);
+          } else if (track.source === 'netease' && track.sourceId) {
+            playableId = String(track.sourceId);
+          }
+
+          if (!playableId) {
+            continue;
+          }
+
+          const remote = neteaseMap.get(playableId);
+
+          if (!remote?.url || remote?.error) {
+            continue;
+          }
+
+          merged.push({
+            id: track.id || `netease_${playableId}`,
+            title: track.title || remote.name || '未知歌曲',
+            name: track.title || remote.name || '未知歌曲',
+            artist:
+              track.artist ||
+              remote.artist ||
+              remote.author ||
+              '未知歌手',
+            author:
+              track.artist ||
+              remote.artist ||
+              remote.author ||
+              '未知歌手',
+            cover:
+              track.cover ||
+              remote.cover ||
+              remote.pic ||
+              '',
+            pic:
+              track.cover ||
+              remote.cover ||
+              remote.pic ||
+              '',
+            src: remote.url,
+            lrc: track.lrc || remote.lrc || '',
+            lyrics: parseLrc(track.lrc || remote.lrc || ''),
+            source: track.source,
+            sourcePlaylist: (track as any).sourcePlaylist,
+            sourceTrackId: track.sourceId,
+          });
+        }
+
+        if (!alive) return;
+
+        setPlaylist(merged);
+        setCurrentIndex(0);
+
+        if (merged.length === 0) {
+          setCurrentLyric('音乐库里暂时没有可播放歌曲');
+        } else {
+          setCurrentLyric('♪ 音乐库已连接 ♪');
+        }
+      } catch {
+        if (alive) {
+          setCurrentLyric('音乐库初始化失败');
+        }
+      } finally {
+        if (alive) setIsLoading(false);
       }
+    }
+
+    load();
+
+    return () => {
+      alive = false;
     };
-
-    if (siteConfig.cloudMusicIds?.length > 0) fetchMusicData();
-    else setIsLoading(false);
-
-    return () => { isMounted = false; };
   }, []);
 
+  const currentSong = playlist[currentIndex];
+
   useEffect(() => {
-    if (playlist.length === 0) return;
-    let isMounted = true;
-    const currentSong = playlist[currentIndex];
-    setLyrics([]);
-    setCurrentLyric("♪ 正在缓冲 ♪");
-    if (currentSong.lyrics && currentSong.lyrics.length > 0) {
-      if (isMounted) {
-        setLyrics(currentSong.lyrics);
-        setCurrentLyric(currentSong.lyrics[0]?.text || "\u266a \u7eaf\u4eab\u97f3\u4e50 \u266a");
-      }
-    } else if (currentSong.lrcUrl) {
-      fetch(currentSong.lrcUrl)
-        .then(res => res.text())
-        .then(text => {
-          if (isMounted) {
-             const parsed = parseLrc(text);
-             setLyrics(parsed);
-             setPlaylist(prev => {
-                const newPlaylist = [...prev];
-                newPlaylist[currentIndex].lyrics = parsed;
-                return newPlaylist;
-             });
-          }
-        })
-        .catch(() => { if (isMounted) setCurrentLyric("\u266a \u7eaf\u4eab\u97f3\u4e50 \u266a"); });
+    if (!currentSong) {
+      setLyrics([]);
+      return;
     }
+
+    const parsed =
+      currentSong.lyrics?.length
+        ? currentSong.lyrics
+        : currentSong.lrc
+          ? parseLrc(currentSong.lrc)
+          : [];
+
+    setLyrics(parsed);
+    setCurrentLyric(parsed[0]?.text || '♪ 纯享音乐 ♪');
 
     if (isPlaying && audioRef.current) {
-      const playPromise = audioRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(() => setIsPlaying(false));
-      }
+      audioRef.current.play().catch(() => setIsPlaying(false));
     }
-    return () => { isMounted = false; };
-  }, [currentIndex, playlist.length]); // 移除 playlist 依赖防止无限循环，只依赖长度
+  }, [currentIndex, currentSong?.id]);
 
-  // 🌟 4. 同步音量到 audio 元素
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.volume = isMuted ? 0 : volume;
     }
   }, [volume, isMuted]);
 
-  const togglePlay = () => {
-    if (audioRef.current) {
-      if (isPlaying) audioRef.current.pause();
-      else audioRef.current.play().catch(() => setIsPlaying(false));
-      setIsPlaying(!isPlaying);
-    }
-  };
-
-  // 🌟 5. 重写 nextSong，加入对随机模式的处理
   const nextSong = () => {
+    if (playlist.length === 0) return;
+
     if (playMode === 'random') {
       setCurrentIndex(Math.floor(Math.random() * playlist.length));
     } else {
@@ -177,85 +349,161 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   };
 
   const prevSong = () => {
+    if (playlist.length === 0) return;
+
     if (playMode === 'random') {
       setCurrentIndex(Math.floor(Math.random() * playlist.length));
     } else {
-      setCurrentIndex((prev) => (prev - 1 + playlist.length) % playlist.length);
+      setCurrentIndex(
+        (prev) => (prev - 1 + playlist.length) % playlist.length
+      );
     }
   };
 
-  // 🌟 6. 暴露直接播放指定歌曲的方法
-  const playSong = (index: number) => {
-    setCurrentIndex(index);
-    if (!isPlaying) setIsPlaying(true); // 保证切歌后自动播放
-  };
+  const togglePlay = () => {
+    const audio = audioRef.current;
+    if (!audio || !currentSong) return;
 
-  const handleTimeUpdate = () => {
-    if (audioRef.current) {
-      const { currentTime, duration } = audioRef.current;
-      setCurrentTime(currentTime);
-      setDuration(duration || 0);
-      setProgress((currentTime / (duration || 1)) * 100);
-
-      if (lyrics.length > 0) {
-        const activeLyric = lyrics.slice().reverse().find(l => currentTime >= l.time);
-        if (activeLyric && activeLyric.text !== currentLyric) {
-          setCurrentLyric(activeLyric.text);
-        }
-      }
-    }
-  };
-
-  // 🌟 7. 处理歌曲结束
-  const handleEnded = () => {
-    if (playMode === 'single' && audioRef.current) {
-       audioRef.current.currentTime = 0;
-       audioRef.current.play();
+    if (isPlaying) {
+      audio.pause();
+      setIsPlaying(false);
     } else {
-       nextSong();
+      audio
+        .play()
+        .then(() => setIsPlaying(true))
+        .catch(() => setIsPlaying(false));
     }
+  };
+
+  const playSong = (index: number) => {
+    if (index < 0 || index >= playlist.length) return;
+
+    setCurrentIndex(index);
+    setIsPlaying(true);
+
+    requestAnimationFrame(() => {
+      audioRef.current?.play().catch(() => setIsPlaying(false));
+    });
   };
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newProgress = Number(e.target.value);
     setProgress(newProgress);
+
     if (audioRef.current && audioRef.current.duration) {
-      audioRef.current.currentTime = (newProgress / 100) * audioRef.current.duration;
+      audioRef.current.currentTime =
+        (newProgress / 100) * audioRef.current.duration;
     }
   };
 
-  const setVolume = (val: number) => {
-    setVolumeState(val);
-    if (isMuted && val > 0) setIsMuted(false);
+  const handleTimeUpdate = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const now = audio.currentTime || 0;
+    const total = audio.duration || 0;
+
+    setCurrentTime(now);
+    setDuration(total);
+    setProgress(total > 0 ? (now / total) * 100 : 0);
+
+    if (lyrics.length > 0) {
+      let active = '';
+
+      for (let index = lyrics.length - 1; index >= 0; index -= 1) {
+        if (now >= lyrics[index].time) {
+          active = lyrics[index].text;
+          break;
+        }
+      }
+
+      if (active && active !== currentLyric) {
+        setCurrentLyric(active);
+      }
+    }
   };
 
-  const toggleMute = () => setIsMuted(!isMuted);
+  const handleEnded = () => {
+    if (playMode === 'single' && audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(() => setIsPlaying(false));
+      return;
+    }
+
+    nextSong();
+  };
+
+  const setVolume = (value: number) => {
+    setVolumeState(value);
+    if (isMuted && value > 0) setIsMuted(false);
+  };
+
+  const toggleMute = () => setIsMuted((prev) => !prev);
 
   const togglePlayMode = () => {
-    setPlayMode(prev => {
+    setPlayMode((prev) => {
       if (prev === 'loop') return 'single';
       if (prev === 'single') return 'random';
       return 'loop';
     });
   };
 
-  const currentSong = playlist[currentIndex];
+  const value = useMemo<MusicContextType>(
+    () => ({
+      playlist,
+      currentIndex,
+      currentSong,
+      isPlaying,
+      progress,
+      currentTime,
+      duration,
+      currentLyric,
+      isLoading,
+      volume,
+      isMuted,
+      playMode,
+
+      togglePlay,
+      nextSong,
+      prevSong,
+      handleSeek,
+      playSong,
+      selectSong: playSong,
+      setVolume,
+      toggleMute,
+      togglePlayMode,
+    }),
+    [
+      playlist,
+      currentIndex,
+      currentSong,
+      isPlaying,
+      progress,
+      currentTime,
+      duration,
+      currentLyric,
+      isLoading,
+      volume,
+      isMuted,
+      playMode,
+      lyrics,
+    ]
+  );
 
   return (
-    <MusicContext.Provider value={{
-        playlist, currentIndex, currentSong, isPlaying, progress, currentTime, duration, currentLyric, isLoading,
-        volume, isMuted, playMode, // 暴露新状态
-        togglePlay, nextSong, prevSong, handleSeek,
-        playSong, setVolume, toggleMute, togglePlayMode // 暴露新方法
-    }}>
+    <MusicContext.Provider value={value}>
       {children}
+
       {currentSong && (
         <audio
           ref={audioRef}
           src={currentSong.src}
+          preload="metadata"
           onTimeUpdate={handleTimeUpdate}
-          onEnded={handleEnded} // 使用我们重写的结束处理
+          onEnded={handleEnded}
           onLoadedMetadata={handleTimeUpdate}
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
         />
       )}
     </MusicContext.Provider>
@@ -264,6 +512,10 @@ export function MusicProvider({ children }: { children: ReactNode }) {
 
 export const useMusic = () => {
   const context = useContext(MusicContext);
-  if (!context) throw new Error("useMusic must be used within MusicProvider");
+
+  if (!context) {
+    throw new Error('useMusic must be used within MusicProvider');
+  }
+
   return context;
 };

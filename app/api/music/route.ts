@@ -29,13 +29,17 @@ export async function GET(request: NextRequest) {
   const results: SongResult[] = await Promise.all(
     songIds.map(async (songId): Promise<SongResult> => {
       try {
-        const [detailRes, lrcRes] = await Promise.all([
+        const [detailRes, lrcRes, playerRes] = await Promise.all([
           fetch(
             `https://music.163.com/api/song/detail/?id=${songId}&ids=[${songId}]`,
             { headers: NET_EASE_HEADERS, signal: AbortSignal.timeout(6000) },
           ),
           fetch(
             `https://music.163.com/api/song/lyric?id=${songId}&lv=-1&kv=-1&tv=-1`,
+            { headers: NET_EASE_HEADERS, signal: AbortSignal.timeout(6000) },
+          ).catch(() => null),
+          fetch(
+            `https://music.163.com/api/song/enhance/player/url?ids=[${songId}]&br=128000`,
             { headers: NET_EASE_HEADERS, signal: AbortSignal.timeout(6000) },
           ).catch(() => null),
         ])
@@ -57,6 +61,19 @@ export async function GET(request: NextRequest) {
           }
         }
 
+        let publicUrl = ''
+        if (playerRes && playerRes.ok) {
+          try {
+            const playerData = await playerRes.json()
+            const playback = playerData.data?.[0]
+            if (playback?.code === 200 && playback?.url && !playback?.freeTrialInfo) {
+              publicUrl = playback.url
+            }
+          } catch {
+            /* 播放状态失败时保留元数据，但不返回伪播放地址 */
+          }
+        }
+
         const artistName = song.artists?.[0]?.name || '未知歌手'
 
         return {
@@ -66,8 +83,9 @@ export async function GET(request: NextRequest) {
           author: artistName,
           cover: song.album?.picUrl || '',
           pic: song.album?.picUrl || '',
-          url: `https://music.163.com/song/media/outer/url?id=${songId}.mp3`,
+          url: publicUrl,
           lrc: lrcText,
+          ...(publicUrl ? {} : { error: 'unavailable' }),
         }
       } catch (error) {
         console.error(`[api/music] 获取歌曲 ${songId} 失败:`, error)
