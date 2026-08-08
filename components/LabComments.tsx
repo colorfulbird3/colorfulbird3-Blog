@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import 'gitalk/dist/gitalk.css';
 import Gitalk from 'gitalk';
+import GitalkConfigNotice, { getMissingGitalkFields } from './GitalkConfigNotice';
 
 import { siteConfig } from '../siteConfig';
 
@@ -11,9 +12,10 @@ import { siteConfig } from '../siteConfig';
 export default function LabComments({ pageId }: { pageId?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+  const missingConfig = getMissingGitalkFields();
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current || missingConfig.length > 0) return;
 
     // 清空之前的评论区，防止切换月份时叠加
     containerRef.current.innerHTML = '';
@@ -41,7 +43,11 @@ export default function LabComments({ pageId }: { pageId?: string }) {
       window.history.replaceState({}, document.title, url.toString());
     }
 
-  }, [pathname, pageId]);
+  }, [pathname, pageId, missingConfig.length]);
+
+  if (missingConfig.length > 0) {
+    return <GitalkConfigNotice missing={missingConfig} />;
+  }
 
   return (
     <div className="w-full mt-16 relative">

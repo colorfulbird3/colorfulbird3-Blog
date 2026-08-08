@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import 'gitalk/dist/gitalk.css';
 import Gitalk from 'gitalk';
 import { siteConfig } from '../siteConfig';
+import GitalkConfigNotice, { getMissingGitalkFields } from './GitalkConfigNotice';
 
 interface MomentCommentsProps {
   id: string; // 必须传入说说的专属 ID
@@ -11,9 +12,10 @@ interface MomentCommentsProps {
 
 export default function MomentComments({ id }: MomentCommentsProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const missingConfig = getMissingGitalkFields();
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current || missingConfig.length > 0) return;
 
     // 清空重载，防止 React 严格模式下重复渲染
     containerRef.current.innerHTML = '';
@@ -24,13 +26,18 @@ export default function MomentComments({ id }: MomentCommentsProps) {
       repo: siteConfig.gitalkConfig.repo,
       owner: siteConfig.gitalkConfig.owner,
       admin: siteConfig.gitalkConfig.admin,
+      proxy: '/api/github',
       // 截取前49个字符作为 GitHub Issue 的 Label（Gitalk 的要求）
       id: id.substring(0, 49),
       distractionFreeMode: false,
     });
 
     gitalk.render(containerRef.current);
-  }, [id]);
+  }, [id, missingConfig.length]);
+
+  if (missingConfig.length > 0) {
+    return <GitalkConfigNotice missing={missingConfig} />;
+  }
 
   return (
     <div className="w-full relative">

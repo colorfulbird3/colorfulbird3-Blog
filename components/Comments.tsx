@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import 'gitalk/dist/gitalk.css';
 import Gitalk from 'gitalk';
+import GitalkConfigNotice, { getMissingGitalkFields } from './GitalkConfigNotice';
 
 // 🌟 引入全局配置，读取你的 GitHub OAuth 凭证
 import { siteConfig } from '../siteConfig'; // 如果路径报错，请检查层级是否需要改成 '../../siteConfig'
@@ -11,9 +12,10 @@ import { siteConfig } from '../siteConfig'; // 如果路径报错，请检查层
 export default function Comments() {
   const containerRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+  const missingConfig = getMissingGitalkFields();
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current || missingConfig.length > 0) return;
 
     // 清空之前的评论区（防止 Next.js 路由切换时重复渲染）
     containerRef.current.innerHTML = '';
@@ -42,7 +44,11 @@ export default function Comments() {
       window.history.replaceState({}, document.title, url.toString());
     }
 
-  }, [pathname]);
+  }, [pathname, missingConfig.length]);
+
+  if (missingConfig.length > 0) {
+    return <GitalkConfigNotice missing={missingConfig} />;
+  }
 
   return (
     <div className="w-full mt-16 relative">
