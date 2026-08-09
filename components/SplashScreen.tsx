@@ -5,7 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { siteConfig } from '../siteConfig';
 
 export default function SplashScreen() {
-  const [show, setShow] = useState(false);
+  // The server must render the splash on the first paint. Starting with
+  // `false` makes the home page flash before this effect can run.
+  const [show, setShow] = useState(true);
 
   function exitSplash() {
     setShow(false);
@@ -24,13 +26,15 @@ export default function SplashScreen() {
       // 隐私模式或禁用存储时仍允许页面正常进入。
     }
 
-    if (!hasSeenSplash) {
-      setShow(true);
-      const timer = setTimeout(() => {
-        exitSplash();
-      }, 2200);
-      return () => clearTimeout(timer);
+    if (hasSeenSplash) {
+      const timer = window.setTimeout(() => setShow(false), 0);
+      return () => window.clearTimeout(timer);
     }
+
+    const timer = setTimeout(() => {
+      exitSplash();
+    }, 2200);
+    return () => clearTimeout(timer);
   }, []);
 
   return (
@@ -40,7 +44,7 @@ export default function SplashScreen() {
           key="splash-screen-container"
           exit={{ opacity: 0, scale: 1.1, filter: "blur(20px)" }}
           transition={{ duration: 0.8, ease: "easeInOut" }}
-          className="fixed inset-0 z-[100000] flex flex-col items-center justify-center bg-white dark:bg-slate-950"
+          className="initial-splash fixed inset-0 z-[100000] flex flex-col items-center justify-center bg-white dark:bg-slate-950"
         >
           <div className="relative z-10 flex flex-col items-center">
             {/* 头像光环 */}

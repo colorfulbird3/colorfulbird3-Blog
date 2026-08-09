@@ -14,7 +14,7 @@ interface Firefly {
   floatPath: string;
 }
 
-const FIREFLY_COUNT = 18;
+const FIREFLY_COUNT = 10;
 
 export default function Fireflies() {
   const flies = useMemo<Firefly[]>(

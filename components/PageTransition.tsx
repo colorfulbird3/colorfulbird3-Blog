@@ -17,14 +17,14 @@ export default function PageTransition({
 
       <style jsx>{`
         .page-transition-120 {
-          animation: pageEnter120 420ms
+          animation: pageEnter120 220ms
             cubic-bezier(0.22, 1, 0.36, 1) both;
         }
 
         @keyframes pageEnter120 {
           from {
             opacity: 0;
-            transform: translate3d(0, 16px, 0);
+            transform: translate3d(0, 8px, 0);
           }
 
           to {

@@ -6,19 +6,19 @@ export const albums: Album[] = [
   {
     "title": "在治安局上班的日常",
     "description": "这封面真好看",
-    "cover": "/uploads/c182141385e644159009bea34e478589.png",
+    "cover": "/uploads/c182141385e644159009bea34e478589.webp",
     "id": "album_1786105524636",
     "photos": [
       {
         "caption": "她真好看",
-        "url": "/uploads/951bc6d04b9f46d8bf026e04269efaef.png"
+        "url": "/uploads/951bc6d04b9f46d8bf026e04269efaef.webp"
       },
       {
         "caption": "她真好看",
-        "url": "/uploads/094d6f00562747b8a8508669a4005a79.png"
+        "url": "/uploads/094d6f00562747b8a8508669a4005a79.webp"
       },
       {
-        "url": "/uploads/b38937bf8f3b4ef994669a142562296d.png",
+        "url": "/uploads/b38937bf8f3b4ef994669a142562296d.webp",
         "caption": "她真好看\n"
       }
     ],
@@ -29,21 +29,21 @@ export const albums: Album[] = [
     "id": "album_1786105160268",
     "photos": [
       {
-        "url": "/uploads/a8b22a0db224444fb639bf0aa51d7485.png",
+        "url": "/uploads/a8b22a0db224444fb639bf0aa51d7485.webp",
         "caption": "最猛的一集"
       },
       {
-        "url": "/uploads/4bc15804ff2b48cbb4770c947248ee70.png",
+        "url": "/uploads/4bc15804ff2b48cbb4770c947248ee70.webp",
         "caption": "第一次出心"
       },
       {
-        "url": "/uploads/fa8317c20c194d28bc98e8033d6bdcb2.png"
+        "url": "/uploads/fa8317c20c194d28bc98e8033d6bdcb2.webp"
       },
       {
-        "url": "/uploads/a13584d7fea54f6f9178a128d76198a3.png"
+        "url": "/uploads/a13584d7fea54f6f9178a128d76198a3.webp"
       }
     ],
     "date": "2026-08-07",
-    "cover": "/uploads/4a45f24a4532486e92f06514113dbdd5.png"
+    "cover": "/uploads/4a45f24a4532486e92f06514113dbdd5.webp"
   }
 ];

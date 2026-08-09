@@ -14,7 +14,7 @@ interface WildBlade {
   isLeftCurve: boolean;
 }
 
-const BLADE_COUNT = 50;
+const BLADE_COUNT = 24;
 
 export default function WindyGrass() {
   const { isDark } = useTheme();

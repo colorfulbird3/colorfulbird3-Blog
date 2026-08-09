@@ -9,7 +9,8 @@ const nextConfig: NextConfig = {
 
   // 下面这些可以保留
   images: {
-    unoptimized: true,
+    formats: ['image/webp'],
+    qualities: [55, 72, 75],
   },
   typescript: {
     ignoreBuildErrors: true, // 忽略 TS 错误，方便快速部署

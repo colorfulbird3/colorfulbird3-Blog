@@ -11,7 +11,7 @@ interface Petal {
   drift: number;
 }
 
-const PETAL_COUNT = 16;
+const PETAL_COUNT = 10;
 
 export default function Sakura() {
   const petals = useMemo<Petal[]>(

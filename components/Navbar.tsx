@@ -17,6 +17,12 @@ import {
 } from 'framer-motion';
 import { siteConfig } from '../siteConfig';
 
+const HEAVY_ROUTES = new Set([
+  '/photowall',
+  '/music',
+  '/tree',
+]);
+
 export default function Navbar() {
   const [showNav, setShowNav] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] =
@@ -203,7 +209,6 @@ export default function Navbar() {
         <div className="w-[90%] max-w-6xl mx-auto h-16 flex items-center justify-between px-4 sm:px-[30px] box-border">
           <Link
             href="/"
-            prefetch
             className="text-xl font-black text-slate-800 dark:text-white tracking-tighter hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-300"
           >
             {siteConfig.navTitle ||
@@ -226,7 +231,7 @@ export default function Navbar() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  prefetch
+                  prefetch={HEAVY_ROUTES.has(link.href) ? false : null}
                   className={`relative py-1 transition-colors ${
                     isActive
                       ? 'text-indigo-600 dark:text-indigo-400'
@@ -357,7 +362,7 @@ export default function Navbar() {
                           >
                             <Link
                               href={link.href}
-                              prefetch
+                              prefetch={HEAVY_ROUTES.has(link.href) ? false : null}
                               onClick={() =>
                                 setIsMobileMenuOpen(
                                   false

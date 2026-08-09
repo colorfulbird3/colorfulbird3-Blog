@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
 import Link from 'next/link';
+import Image from 'next/image';
 
 import Navbar from '../components/Navbar';
 import PageTransition from '../components/PageTransition';
@@ -126,8 +127,8 @@ export default function Home() {
                 <div className="col-span-1 lg:col-span-8 flex flex-col gap-6">
 
                   {/* 照片墙大海报 */}
-                  <Link href="/photowall" className="w-full rounded-3xl bg-white/40 dark:bg-slate-800/50 backdrop-blur-md border border-white/40 dark:border-white/10 shadow-xl overflow-hidden transition-all duration-700 hover:scale-[1.02] relative group min-h-[200px] sm:min-h-[220px] flex-shrink-0">
-                    <img src={latestAlbum.cover} className="w-full h-full absolute inset-0 object-cover transition-transform duration-700 group-hover:scale-105 opacity-90"/>
+                  <Link href="/photowall" prefetch={false} className="w-full rounded-3xl bg-white/40 dark:bg-slate-800/50 backdrop-blur-md border border-white/40 dark:border-white/10 shadow-xl overflow-hidden transition-all duration-700 hover:scale-[1.02] relative group min-h-[200px] sm:min-h-[220px] flex-shrink-0">
+                    <Image src={latestAlbum.cover} alt={latestAlbum.title} fill sizes="(max-width: 1024px) 100vw, 66vw" quality={72} className="object-cover transition-transform duration-700 group-hover:scale-105 opacity-90"/>
                     <div className="absolute inset-0 bg-black/30 dark:bg-black/50 group-hover:bg-black/10 transition-colors duration-500"></div>
                     <div className="absolute bottom-4 left-4 sm:bottom-6 sm:left-6 right-6">
                       <h3 className="text-2xl sm:text-3xl font-bold text-white mb-1 sm:mb-2 underline decoration-pink-400">{latestAlbum.title}</h3>

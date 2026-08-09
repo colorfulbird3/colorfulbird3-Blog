@@ -15,6 +15,7 @@ import CyberCat from '../components/CyberCat';
 import DanmakuBackground from '../components/DanmakuBackground';
 
 import MobileBackButton from '../components/MobileBackButton';
+import { Analytics } from '@vercel/analytics/next';
 export const metadata: Metadata = {
   title: siteConfig.title,
   description: siteConfig.bio,
@@ -28,18 +29,25 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="zh-CN" className="h-full antialiased" suppressHydrationWarning>
       <head>
+        <script
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{
+            __html: `try{if(sessionStorage.getItem('hasSeenSplash')==='true'){document.documentElement.classList.add('splash-seen')}}catch(e){}`,
+          }}
+        />
         <style
           suppressHydrationWarning
           dangerouslySetInnerHTML={{
             __html: `
               /* 启动动画只是覆盖层，不能阻塞正文渲染。 */
               #app-mount-root { opacity: 1; visibility: visible; pointer-events: auto; }
+              html.splash-seen .initial-splash { display: none !important; }
             `
           }}
         />
       </head>
 
-      <body className="w-screen overflow-x-hidden min-h-full flex flex-col relative transition-colors duration-1000 bg-slate-50 dark:bg-slate-950 font-serif">
+      <body className="w-screen overflow-x-hidden min-h-full flex flex-col relative transition-colors duration-300 bg-slate-50 dark:bg-slate-950 font-serif">
         <ThemeProvider>
 
           <SplashScreen />
@@ -111,8 +119,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           </div>
 
         </ThemeProvider>
-              <FPSCounter />
-</body>
+        <Analytics />
+        <FPSCounter />
+      </body>
     </html>
   );
 }

@@ -11,7 +11,7 @@ interface DanmakuItem {
   delay: number;
 }
 
-const DANMAKU_COUNT = 8;
+const DANMAKU_COUNT = 4;
 
 export default function DanmakuBackground() {
   const danmakus = useMemo<DanmakuItem[]>(() => {

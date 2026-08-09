@@ -3,6 +3,18 @@
 /* 1. 声明暗黑模式变体 */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* 尊重系统的低动态效果设置，避免动画在低性能设备上持续占用主线程。 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* 2. 基础环境与性能优化 */
 @layer base {
   :root {

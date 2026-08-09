@@ -96,31 +96,6 @@ export default function LatestPostsCarousel({
     };
   }, [safePosts.length]);
 
-  useEffect(() => {
-    if (safePosts.length === 0) return;
-
-    const preloadIndexes = new Set([
-      currentIndex,
-      (currentIndex + 1) %
-        safePosts.length,
-    ]);
-
-    for (const index of preloadIndexes) {
-      const cover =
-        safePosts[index]?.cover;
-
-      if (!cover) continue;
-
-      const image = new Image();
-      image.decoding = 'async';
-      image.src = cover;
-
-      if (image.decode) {
-        image.decode().catch(() => {});
-      }
-    }
-  }, [currentIndex, safePosts]);
-
   if (safePosts.length === 0) {
     return null;
   }
@@ -168,7 +143,6 @@ export default function LatestPostsCarousel({
             ? '#'
             : `/posts/${currentPost.slug}`
         }
-        prefetch
         className="absolute inset-0 z-20"
         aria-label={`阅读 ${currentPost.title}`}
       />

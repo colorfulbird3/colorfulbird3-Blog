@@ -71,8 +71,9 @@ export default function ClickEffect() {
 
       if (ripples.length === 0) return;
 
-      ctx.shadowBlur = 7;
-      ctx.shadowColor = 'rgba(129, 140, 248, 0.35)';
+      // 阴影滤镜会让 Canvas 每帧触发额外的栅格化，涟漪本身已经足够明显。
+      ctx.shadowBlur = 0;
+      ctx.shadowColor = 'transparent';
 
       for (let i = ripples.length - 1; i >= 0; i--) {
         const ripple = ripples[i];
@@ -98,7 +99,7 @@ export default function ClickEffect() {
     };
 
     const handleClick = (e: MouseEvent) => {
-      if (ripples.length >= 8) ripples.shift();
+      if (ripples.length >= 4) ripples.shift();
       ripples.push(new Ripple(e.clientX, e.clientY));
       ensureAnimating();
     };
