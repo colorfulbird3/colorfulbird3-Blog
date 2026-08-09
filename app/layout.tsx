@@ -1,4 +1,4 @@
-﻿import 'katex/dist/katex.min.css';
+import 'katex/dist/katex.min.css';
 import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "../components/ThemeProvider";
@@ -13,6 +13,7 @@ import GlobalToolbox from "../components/GlobalToolbox";
 import SplashScreen from "../components/SplashScreen";
 import CyberCat from '../components/CyberCat';
 import DanmakuBackground from '../components/DanmakuBackground';
+import { Analytics } from '@vercel/analytics/next';
 
 import MobileBackButton from '../components/MobileBackButton';
 export const metadata: Metadata = {
@@ -112,6 +113,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
 
         </ThemeProvider>
               <FPSCounter />
+        <Analytics />
 </body>
     </html>
   );
