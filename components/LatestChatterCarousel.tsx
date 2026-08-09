@@ -28,7 +28,7 @@ export default function LatestChatterCarousel({ chatters }: { chatters: any[] })
 
   return (
     // 🌟 注意这里：去掉了 md:col-span-8，变成一个纯粹填满父容器的组件
-    <div className="interactive-surface w-full h-full rounded-3xl bg-white/40 dark:bg-slate-800/50 backdrop-blur-md border border-white/40 dark:border-white/10 shadow-xl overflow-hidden relative group min-h-[220px] flex flex-col">
+    <div className="w-full h-full rounded-3xl bg-white/40 dark:bg-slate-800/50 backdrop-blur-md border border-white/40 dark:border-white/10 shadow-xl overflow-hidden relative group min-h-[220px] flex flex-col">
       <Link href={currentChatter.slug === 'none' ? '/chatter' : `/chatter/${currentChatter.slug}`} className="absolute inset-0 z-20" aria-label={`查看杂谈: ${currentChatter.title}`} />
 
       <AnimatePresence mode="wait">
