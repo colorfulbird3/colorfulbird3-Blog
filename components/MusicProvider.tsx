@@ -302,10 +302,12 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    load();
+    // 音乐元数据不应阻塞首屏，等待页面首次绘制后再请求。
+    const loadTimer = window.setTimeout(load, 1200);
 
     return () => {
       alive = false;
+      window.clearTimeout(loadTimer);
     };
   }, []);
 

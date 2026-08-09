@@ -6,11 +6,23 @@ import { siteConfig } from '../siteConfig';
 
 export default function SplashScreen() {
   const [show, setShow] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
+
+  function exitSplash() {
+    setShow(false);
+    try {
+      sessionStorage.setItem('hasSeenSplash', 'true');
+    } catch {
+      // 存储不可用时不影响启动动画关闭。
+    }
+  }
 
   useEffect(() => {
-    setIsMounted(true);
-    const hasSeenSplash = sessionStorage.getItem('hasSeenSplash') === 'true';
+    let hasSeenSplash = false;
+    try {
+      hasSeenSplash = sessionStorage.getItem('hasSeenSplash') === 'true';
+    } catch {
+      // 隐私模式或禁用存储时仍允许页面正常进入。
+    }
 
     if (!hasSeenSplash) {
       setShow(true);
@@ -18,23 +30,8 @@ export default function SplashScreen() {
         exitSplash();
       }, 2200);
       return () => clearTimeout(timer);
-    } else {
-      // 容错处理：确保直接访问时类名存在
-      document.documentElement.classList.add('splash-seen');
     }
   }, []);
-
-  const exitSplash = () => {
-    setShow(false);
-    sessionStorage.setItem('hasSeenSplash', 'true');
-
-    // 【核心解封】：动画快结束时，给 html 加上类名，CSS 会自动把内容显示出来
-    setTimeout(() => {
-      document.documentElement.classList.add('splash-seen');
-    }, 500);
-  };
-
-  if (!isMounted) return null;
 
   return (
     <AnimatePresence>
