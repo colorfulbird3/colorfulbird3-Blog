@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
+import { AnimatePresence, motion } from 'framer-motion';
 import Navbar from '../../components/Navbar';
 import PageTransition from '../../components/PageTransition';
 import { albums, Album } from '../../data/albums';
@@ -47,8 +48,15 @@ export default function PhotoWallClient() {
       <PageTransition>
         <div className="w-full max-w-7xl mx-auto mt-28 px-4 sm:px-10 relative z-10">
 
+          <AnimatePresence mode="wait" initial={false}>
           {!currentAlbum && (
-            <div className="animate-fade-in-up">
+            <motion.div
+              key="album-list"
+              initial={{ opacity: 0, y: 18, scale: 0.985 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -18, scale: 0.985 }}
+              transition={{ duration: 0.52, ease: [0.22, 1, 0.36, 1] }}
+            >
               <div className="flex flex-col md:flex-row justify-between items-center mb-16 gap-6">
                 <div>
                   <h1 className="text-4xl md:text-5xl font-black text-slate-900 dark:text-white tracking-widest mb-2 transition-colors duration-700">光影画廊</h1>
@@ -142,11 +150,17 @@ export default function PhotoWallClient() {
                   </div>
                 )}
               </div>
-            </div>
+            </motion.div>
           )}
 
           {currentAlbum && (
-            <div className="animate-fade-in-up">
+            <motion.div
+              key={`album-${currentAlbum.id}`}
+              initial={{ opacity: 0, y: 26, scale: 0.985 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 18, scale: 0.985 }}
+              transition={{ duration: 0.58, ease: [0.22, 1, 0.36, 1] }}
+            >
               <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-4 border-b border-slate-300/50 dark:border-slate-700/50 pb-6">
                 <div>
                   <div className="flex items-center gap-4 mb-4">
@@ -190,8 +204,9 @@ export default function PhotoWallClient() {
                   </div>
                 ))}
               </div>
-            </div>
+            </motion.div>
           )}
+          </AnimatePresence>
 
         </div>
       </PageTransition>
@@ -282,6 +297,13 @@ export default function PhotoWallClient() {
             opacity: 1;
             transform: translate3d(0, 0, 0);
           }
+        }
+        /* 相册交互是明确的产品动效，即使系统开启减少动态也保留这段短过渡。 */
+        @media (prefers-reduced-motion: reduce) {
+          .album-layer { transition-duration: 720ms !important; }
+          .album-cover { transition-duration: 850ms !important; }
+          .album-reveal { transition-duration: 520ms !important; }
+          .album-reveal-line { transition-duration: 560ms !important; }
         }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

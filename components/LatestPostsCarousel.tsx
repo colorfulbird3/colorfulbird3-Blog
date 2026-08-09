@@ -136,7 +136,7 @@ export default function LatestPostsCarousel({
   );
 
   return (
-    <div className="md:col-span-4 rounded-3xl bg-white/40 dark:bg-slate-800/50 backdrop-blur-md border border-white/40 dark:border-white/10 shadow-xl overflow-hidden relative group min-h-[420px] h-full flex flex-col performance-paint-container">
+    <div className="interactive-surface md:col-span-4 rounded-3xl bg-white/40 dark:bg-slate-800/50 backdrop-blur-md border border-white/40 dark:border-white/10 shadow-xl overflow-hidden relative group min-h-[420px] h-full flex flex-col performance-paint-container">
       <Link
         href={
           currentPost.slug === 'none'

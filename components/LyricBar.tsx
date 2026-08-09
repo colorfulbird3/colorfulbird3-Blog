@@ -55,7 +55,7 @@ export default function LyricBar() {
         }
       `}</style>
 
-      <div className="w-full rounded-3xl bg-slate-900/80 dark:bg-slate-950/90 backdrop-blur-xl border border-white/10 shadow-2xl p-5 flex items-center justify-between transition-all duration-700 hover:shadow-indigo-500/20 group h-20">
+      <div className="interactive-surface w-full rounded-3xl bg-slate-900/80 dark:bg-slate-950/90 backdrop-blur-xl border border-white/10 shadow-2xl p-5 flex items-center justify-between group h-20">
 
         {/* 1. 音频波形动态部分：改用统一渲染逻辑实现过渡 */}
         <div className="flex items-end justify-center gap-[4px] h-8 w-16">

@@ -3,15 +3,26 @@
 /* 1. 声明暗黑模式变体 */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* 尊重系统的低动态效果设置，避免动画在低性能设备上持续占用主线程。 */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+/* 首页可交互面板统一使用柔和的上浮过渡，避免 hover 状态一帧跳变。 */
+.interactive-surface {
+  transform: translate3d(0, 0, 0) scale(1);
+  transform-origin: center;
+  transition-property: transform, box-shadow, border-color, background-color;
+  transition-duration: 680ms;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  backface-visibility: hidden;
+}
+
+.interactive-surface img {
+  transition-property: transform, filter, opacity;
+  transition-duration: 820ms;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .interactive-surface:hover {
+    transform: translate3d(0, -6px, 0) scale(1.014);
+    box-shadow: 0 26px 55px -28px rgba(15, 23, 42, 0.65);
   }
 }
 
