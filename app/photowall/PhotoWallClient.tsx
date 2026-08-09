@@ -107,20 +107,20 @@ export default function PhotoWallClient() {
                     <div
                       key={album.id}
                       onClick={() => { setSearchQuery(''); setCurrentAlbum(album); }}
-                      className="group cursor-pointer flex flex-col items-center"
+                      className="album-card group cursor-pointer flex flex-col items-center"
                     >
                       <div className="relative w-[85%] aspect-[4/3] mb-8">
-                        <div className="absolute inset-0 bg-slate-300 dark:bg-slate-700 rounded-[4px] shadow-md transform rotate-6 translate-x-4 translate-y-2 group-hover:rotate-12 group-hover:translate-x-8 transition-all duration-500 border-[6px] border-white dark:border-slate-200 overflow-hidden opacity-60">
+                        <div className="album-layer album-layer-back absolute inset-0 bg-slate-300 dark:bg-slate-700 rounded-[4px] shadow-md border-[6px] border-white dark:border-slate-200 overflow-hidden opacity-60">
                            {album.photos[2] && <Image src={album.photos[2].url} fill sizes="(max-width: 640px) 72vw, (max-width: 1024px) 38vw, 24vw" quality={55} className="object-cover grayscale blur-[2px]" alt="" />}
                         </div>
-                        <div className="absolute inset-0 bg-slate-200 dark:bg-slate-600 rounded-[4px] shadow-lg transform -rotate-3 -translate-x-2 -translate-y-1 group-hover:-rotate-6 group-hover:-translate-x-6 transition-all duration-500 border-[6px] border-white dark:border-slate-200 overflow-hidden opacity-80 z-10">
+                        <div className="album-layer album-layer-middle absolute inset-0 bg-slate-200 dark:bg-slate-600 rounded-[4px] shadow-lg border-[6px] border-white dark:border-slate-200 overflow-hidden opacity-80 z-10">
                            {album.photos[1] && <Image src={album.photos[1].url} fill sizes="(max-width: 640px) 72vw, (max-width: 1024px) 38vw, 24vw" quality={55} className="object-cover grayscale-[50%]" alt="" />}
                         </div>
-                        <div className="absolute inset-0 bg-white dark:bg-slate-200 rounded-[4px] shadow-2xl border-[6px] border-white dark:border-slate-200 overflow-hidden z-20 transform group-hover:-translate-y-2 group-hover:scale-105 transition-all duration-500">
-                          <Image src={album.cover} alt={album.title} fill sizes="(max-width: 640px) 72vw, (max-width: 1024px) 38vw, 24vw" quality={72} className="object-cover transition-transform duration-700 group-hover:scale-105" />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex flex-col justify-end p-5">
-                            <span className="text-white font-bold text-lg drop-shadow-md translate-y-2 group-hover:translate-y-0 transition-transform duration-500">{album.photos.length} 张照片</span>
-                            <span className="text-indigo-300 font-medium text-xs mt-1 drop-shadow-md translate-y-2 group-hover:translate-y-0 transition-transform duration-500 delay-75">Click to Open</span>
+                        <div className="album-layer album-layer-front absolute inset-0 bg-white dark:bg-slate-200 rounded-[4px] shadow-2xl border-[6px] border-white dark:border-slate-200 overflow-hidden z-20">
+                          <Image src={album.cover} alt={album.title} fill sizes="(max-width: 640px) 72vw, (max-width: 1024px) 38vw, 24vw" quality={72} className="album-cover object-cover" />
+                          <div className="album-reveal absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent flex flex-col justify-end p-5">
+                            <span className="album-reveal-line text-white font-bold text-lg drop-shadow-md">{album.photos.length} 张照片</span>
+                            <span className="album-reveal-line album-reveal-line-delayed text-indigo-300 font-medium text-xs mt-1 drop-shadow-md">Click to Open</span>
                           </div>
                         </div>
                       </div>
@@ -221,6 +221,68 @@ export default function PhotoWallClient() {
       )}
 
       <style jsx global>{`
+        .album-layer,
+        .album-cover,
+        .album-reveal,
+        .album-reveal-line {
+          transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .album-layer {
+          transition-property: transform, box-shadow, opacity;
+          transition-duration: 720ms;
+          will-change: transform;
+        }
+        .album-layer-back {
+          transform: translate3d(16px, 8px, 0) rotate(6deg) scale(0.985);
+        }
+        .album-layer-middle {
+          transform: translate3d(-8px, -4px, 0) rotate(-3deg) scale(0.992);
+        }
+        .album-layer-front {
+          transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+        }
+        .album-cover {
+          transition-property: transform, filter;
+          transition-duration: 850ms;
+          transform: scale(1.01);
+        }
+        .album-reveal {
+          opacity: 0;
+          transition-property: opacity;
+          transition-duration: 520ms;
+        }
+        .album-reveal-line {
+          opacity: 0;
+          transform: translate3d(0, 14px, 0);
+          transition-property: opacity, transform;
+          transition-duration: 560ms;
+        }
+        .album-reveal-line-delayed {
+          transition-delay: 55ms;
+        }
+        @media (hover: hover) and (pointer: fine) {
+          .album-card:hover .album-layer-back {
+            transform: translate3d(34px, 18px, 0) rotate(11deg) scale(0.965);
+          }
+          .album-card:hover .album-layer-middle {
+            transform: translate3d(-28px, 10px, 0) rotate(-7deg) scale(0.98);
+          }
+          .album-card:hover .album-layer-front {
+            transform: translate3d(0, -18px, 0) rotate(0.8deg) scale(1.035);
+            box-shadow: 0 28px 55px -18px rgba(15, 23, 42, 0.6);
+          }
+          .album-card:hover .album-cover {
+            transform: scale(1.075);
+            filter: saturate(1.08);
+          }
+          .album-card:hover .album-reveal {
+            opacity: 1;
+          }
+          .album-card:hover .album-reveal-line {
+            opacity: 1;
+            transform: translate3d(0, 0, 0);
+          }
+        }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
