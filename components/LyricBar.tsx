@@ -1,20 +1,26 @@
 "use client";
-import { useEffect, useState } from 'react';
-import { useMusic } from './MusicProvider';
+import { useEffect, useRef } from 'react';
+import { useMusic, useMusicTiming } from './MusicProvider';
 
 export default function LyricBar() {
-  const { isPlaying, currentLyric, currentSong } = useMusic();
-  const [displayedLyric, setDisplayedLyric] = useState("");
+  const { isPlaying, currentSong } = useMusic();
+  const { currentLyric } = useMusicTiming();
+  const lyricTextRef = useRef<HTMLSpanElement>(null);
 
+  // 打字机特效改为直接写 DOM：视觉效果与原来逐字显示完全一致，
+  // 但不经过 setState，避免 50ms 一次的 React 重渲染。
   useEffect(() => {
-    setDisplayedLyric("");
-    let i = 0;
+    const el = lyricTextRef.current;
+    if (!el) return;
+
+    el.textContent = '';
     const targetText = currentLyric || "";
     if (!targetText) return;
 
+    let i = 0;
     const typingInterval = setInterval(() => {
       if (i <= targetText.length) {
-        setDisplayedLyric(targetText.slice(0, i));
+        el.textContent = targetText.slice(0, i);
         i++;
       } else {
         clearInterval(typingInterval);
@@ -45,13 +51,15 @@ export default function LyricBar() {
         .animate-cursor {
           animation: cursorBlink 0.8s step-end infinite;
         }
-        /* 核心修改：让动画高度从 4px 到 28px */
+        /* 波形动画改用 transform: scaleY —— 视觉高度 8px↔28px 与原来一致，
+           但不再触发每帧 layout，全部交给合成器。 */
         @keyframes safeWave {
-          0%, 100% { height: 8px; }
-          50% { height: 28px; }
+          0%, 100% { transform: scaleY(0.286); }
+          50% { transform: scaleY(1); }
         }
         .safe-wave-active {
           animation: safeWave 1s ease-in-out infinite;
+          transform-origin: bottom;
         }
       `}</style>
 
@@ -62,15 +70,16 @@ export default function LyricBar() {
           {waves.map((wave, index) => (
             <div
               key={index}
-              className={`w-1.5 rounded-t-sm transition-all duration-500 ease-out ${
-                isPlaying 
-                  ? `${wave.color} safe-wave-active` 
-                  : 'h-1 bg-slate-600 shadow-none'
+              className={`w-1.5 h-7 rounded-t-sm transition-all duration-500 ease-out ${
+                isPlaying
+                  ? `${wave.color} safe-wave-active`
+                  : 'bg-slate-600 shadow-none'
               }`}
               style={{
                 animationDelay: wave.delay,
-                // 当暂停时，强制回到 4px 高度
-                height: isPlaying ? undefined : '4px'
+                transformOrigin: 'bottom',
+                // 暂停时缩回 4px（28px * 0.143），视觉与原来一致
+                transform: isPlaying ? undefined : 'scaleY(0.143)',
               }}
             ></div>
           ))}
@@ -79,7 +88,7 @@ export default function LyricBar() {
         {/* 2. 歌词显示区 */}
         <div className="flex-1 px-8 flex justify-center items-center overflow-hidden">
           <p className="text-white text-lg font-bold tracking-widest truncate drop-shadow-[0_0_8px_rgba(99,102,241,0.8)]">
-            {displayedLyric}
+            <span ref={lyricTextRef} />
             <span className="inline-block w-[3px] h-5 bg-indigo-400 align-middle ml-1 shadow-[0_0_8px_rgba(99,102,241,0.8)] animate-cursor"></span>
           </p>
         </div>

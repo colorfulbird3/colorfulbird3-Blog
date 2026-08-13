@@ -1,13 +1,14 @@
 "use client";
 
 import { usePathname } from 'next/navigation';
-import { useMusic } from './MusicProvider';
+import { useMusic, useMusicTiming } from './MusicProvider';
 import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
 
 export default function FloatingPlayer() {
   const pathname = usePathname();
-  const { currentSong, isPlaying, togglePlay, nextSong, currentLyric, isLoading } = useMusic();
+  const { currentSong, isPlaying, togglePlay, nextSong, isLoading } = useMusic();
+  const { currentLyric } = useMusicTiming();
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {

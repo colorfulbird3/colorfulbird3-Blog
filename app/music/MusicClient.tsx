@@ -5,17 +5,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, RefreshCcw, ListMusic, Mic2, Disc3, Volume2, VolumeX, Search, X, MessageSquare } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import PageTransition from '../../components/PageTransition';
-import { useMusic } from '../../components/MusicProvider';
+import { useMusic, useMusicProgress, useMusicTiming } from '../../components/MusicProvider';
 import Comments from '../../components/Comments';
 
 export default function MusicClient() {
   const {
-    playlist, currentSong, isPlaying, progress, currentTime, duration, currentLyric,
+    playlist, currentSong, isPlaying,
     isLoading, togglePlay, nextSong, prevSong, handleSeek,
     playSong, selectSong,
     playMode, togglePlayMode,
     volume, setVolume, isMuted, toggleMute
   } = useMusic();
+  const { currentTime, duration, currentLyric } = useMusicTiming();
 
   const lyricContainerRef = useRef<HTMLDivElement>(null);
   const activeLyricRef = useRef<HTMLDivElement>(null);
@@ -84,13 +85,6 @@ export default function MusicClient() {
       container.scrollTo({ top: scrollTarget, behavior: 'smooth' });
     }
   }, [activeLyricIndex, activeTab]);
-
-  const formatTime = (time: number) => {
-    if (!time || isNaN(time)) return "0:00";
-    const mins = Math.floor(time / 60);
-    const secs = Math.floor(time % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
 
   const getPlayModeIcon = () => {
     switch (playMode) {
@@ -169,8 +163,7 @@ export default function MusicClient() {
 
               <div className="w-full mt-auto relative z-20">
                 <div className="w-full flex flex-col gap-1.5 mb-6 md:mb-8 px-1 md:px-3">
-                  <input type="range" min="0" max="100" value={progress || 0} onChange={handleSeek} className="w-full h-1 md:h-1.5 rounded-full appearance-none cursor-pointer" style={{ background: `linear-gradient(to right, #4f46e5 ${progress}%, rgba(0, 0, 0, 0.15) 0)` }} />
-                  <div className="flex justify-between text-[10px] md:text-xs font-bold text-slate-500 dark:text-slate-400 tabular-nums"><span>{formatTime(currentTime)}</span><span>{formatTime(duration)}</span></div>
+                  <PlayerSeekRow />
                 </div>
                 <div className="w-full flex items-center justify-between px-1 md:px-2 lg:px-4">
                   <button onClick={togglePlayMode} className="p-2 transition-transform hover:scale-110">{getPlayModeIcon()}</button>
@@ -290,5 +283,27 @@ export default function MusicClient() {
         }
       `}</style>
     </div>
+  );
+}
+
+// 进度条独立订阅 progress（~4Hz）与时间标签（≤1Hz），
+// MusicClient 本体只在整秒/歌词变化时重渲染。
+function PlayerSeekRow() {
+  const { handleSeek } = useMusic();
+  const { progress } = useMusicProgress();
+  const { currentTime, duration } = useMusicTiming();
+
+  const formatTime = (time: number) => {
+    if (!time || isNaN(time)) return "0:00";
+    const mins = Math.floor(time / 60);
+    const secs = Math.floor(time % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <>
+      <input type="range" min="0" max="100" value={progress || 0} onChange={handleSeek} className="w-full h-1 md:h-1.5 rounded-full appearance-none cursor-pointer" style={{ background: `linear-gradient(to right, #4f46e5 ${progress}%, rgba(0, 0, 0, 0.15) 0)` }} />
+      <div className="flex justify-between text-[10px] md:text-xs font-bold text-slate-500 dark:text-slate-400 tabular-nums"><span>{formatTime(currentTime)}</span><span>{formatTime(duration)}</span></div>
+    </>
   );
 }

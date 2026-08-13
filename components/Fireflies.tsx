@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from 'react';
+import { useEffect, useState } from 'react';
 
 interface Firefly {
   id: number;
@@ -17,8 +17,11 @@ interface Firefly {
 const FIREFLY_COUNT = 10;
 
 export default function Fireflies() {
-  const flies = useMemo<Firefly[]>(
-    () =>
+  // 随机内容放到挂载后再生成：避免水合失败
+  const [flies, setFlies] = useState<Firefly[]>([]);
+
+  useEffect(() => {
+    setFlies(
       Array.from({ length: FIREFLY_COUNT }).map((_, i) => ({
         id: i,
         top: `${Math.random() * 100}%`,
@@ -29,13 +32,13 @@ export default function Fireflies() {
         floatDuration: 18 + Math.random() * 18,
         floatDelay: Math.random() * -20,
         floatPath: `fireflyFloat${Math.floor(Math.random() * 4) + 1}`,
-      })),
-    []
-  );
+      }))
+    );
+  }, []);
 
   return (
     <div
-      className="fixed inset-0 w-full h-full pointer-events-none z-10 overflow-hidden mix-blend-screen"
+      className="fixed inset-0 w-full h-full pointer-events-none z-10 overflow-hidden"
       style={{ contain: 'strict' }}
       aria-hidden="true"
     >
@@ -84,6 +87,9 @@ export default function Fireflies() {
             top: fly.top,
             left: fly.left,
             willChange: 'transform',
+            // blend 收窄到每个光点本身：屏幕混合的视觉不变，
+            // 但不再对整块全屏容器每帧做混合运算
+            mixBlendMode: 'screen',
             animation: `${fly.floatPath} ${fly.floatDuration}s ease-in-out infinite`,
             animationDelay: `${fly.floatDelay}s`,
             transform: 'translateZ(0)',

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from 'react';
+import { useEffect, useState } from 'react';
 
 interface Petal {
   id: number;
@@ -14,8 +14,11 @@ interface Petal {
 const PETAL_COUNT = 10;
 
 export default function Sakura() {
-  const petals = useMemo<Petal[]>(
-    () =>
+  // 随机内容放到挂载后再生成：避免水合失败
+  const [petals, setPetals] = useState<Petal[]>([]);
+
+  useEffect(() => {
+    setPetals(
       Array.from({ length: PETAL_COUNT }).map((_, i) => ({
         id: i,
         left: `${Math.random() * 100}%`,
@@ -23,9 +26,9 @@ export default function Sakura() {
         duration: 7 + Math.random() * 8,
         delay: Math.random() * -15,
         drift: 9 + Math.random() * 10,
-      })),
-    []
-  );
+      }))
+    );
+  }, []);
 
   return (
     <div

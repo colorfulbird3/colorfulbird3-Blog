@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { useTheme } from './ThemeProvider';
 
 interface WildBlade {
@@ -19,8 +19,11 @@ const BLADE_COUNT = 24;
 export default function WindyGrass() {
   const { isDark } = useTheme();
 
-  const blades = useMemo<WildBlade[]>(
-    () =>
+  // 随机内容放到挂载后再生成：避免水合失败
+  const [blades, setBlades] = useState<WildBlade[]>([]);
+
+  useEffect(() => {
+    setBlades(
       Array.from({ length: BLADE_COUNT }).map((_, i) => ({
         id: i,
         height: 30 + Math.random() * 50,
@@ -30,9 +33,9 @@ export default function WindyGrass() {
         opacity: 0.22 + Math.random() * 0.38,
         left: `${(i / BLADE_COUNT) * 100 + (Math.random() - 0.5) * 1.2}%`,
         isLeftCurve: Math.random() > 0.5,
-      })),
-    []
-  );
+      }))
+    );
+  }, []);
 
   return (
     <div

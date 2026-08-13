@@ -1,20 +1,25 @@
 "use client";
-import { useMusic } from './MusicProvider';
-import { useState, useEffect } from 'react';
+import { useMusic, useMusicTiming } from './MusicProvider';
+import { useEffect, useRef } from 'react';
 
 export default function SidebarLyric() {
-  const { currentSong, currentLyric, isPlaying } = useMusic();
-  const [displayedLyric, setDisplayedLyric] = useState("");
+  const { currentSong, isPlaying } = useMusic();
+  const { currentLyric } = useMusicTiming();
+  const lyricTextRef = useRef<HTMLSpanElement>(null);
 
+  // 打字机特效直接写 DOM，避免 50ms 一次 setState 重渲染
   useEffect(() => {
-    setDisplayedLyric("");
-    let i = 0;
+    const el = lyricTextRef.current;
+    if (!el) return;
+
+    el.textContent = '';
     const targetText = currentLyric || "";
     if (!targetText) return;
 
+    let i = 0;
     const typingInterval = setInterval(() => {
       if (i <= targetText.length) {
-        setDisplayedLyric(targetText.slice(0, i));
+        el.textContent = targetText.slice(0, i);
         i++;
       } else {
         clearInterval(typingInterval);
@@ -48,7 +53,7 @@ export default function SidebarLyric() {
       {/* 歌词打字机 */}
       <div className="bg-slate-100/50 dark:bg-slate-900/50 p-3 rounded-xl min-h-[60px] flex items-center justify-center text-center shadow-inner">
         <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400">
-          {displayedLyric}
+          <span ref={lyricTextRef} />
           <span className="inline-block w-[3px] h-3 ml-1 bg-indigo-500 animate-cursor align-middle"></span>
         </p>
       </div>

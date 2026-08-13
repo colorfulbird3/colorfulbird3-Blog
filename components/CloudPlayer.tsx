@@ -1,6 +1,6 @@
 "use client";
-import { useEffect, useState } from 'react';
-import { useMusic } from './MusicProvider';
+import { useEffect, useRef } from 'react';
+import { useMusic, useMusicProgress, useMusicTiming } from './MusicProvider';
 // 🌟 核心引入：Next.js 路由钩子
 import { useRouter } from 'next/navigation';
 
@@ -11,21 +11,48 @@ const formatTime = (time: number) => {
   return `${m}:${s}`;
 };
 
+// 进度条独立成组件：只订阅 progress（~4Hz），CloudPlayer 本体
+// 不再因播放进度变化而整体重渲染。
+function CloudPlayerSeekRow() {
+  const { handleSeek } = useMusic();
+  const { progress } = useMusicProgress();
+  const { currentTime, duration } = useMusicTiming();
+
+  return (
+    <>
+      <span className="w-10 text-right">{formatTime(currentTime)}</span>
+      <input
+        type="range" min="0" max="100"
+        value={progress}
+        onChange={(e) => { e.stopPropagation(); handleSeek(e); }}
+        className="flex-1 h-1.5 bg-white/40 dark:bg-slate-700/50 rounded-full appearance-none outline-none cursor-pointer shadow-inner"
+        style={{ background: `linear-gradient(to right, #818cf8 ${progress}%, rgba(148,163,184,0.4) ${progress}%)` }}
+      />
+      <span className="w-10">{formatTime(duration)}</span>
+    </>
+  );
+}
+
 export default function CloudPlayer() {
-  const { playlist, currentSong, isPlaying, progress, currentTime, duration, currentLyric, isLoading, togglePlay, nextSong, prevSong, handleSeek } = useMusic();
-  const [displayedLyric, setDisplayedLyric] = useState("");
+  const { playlist, currentSong, isPlaying, isLoading, togglePlay, nextSong, prevSong } = useMusic();
+  const { currentLyric } = useMusicTiming();
+  const lyricTextRef = useRef<HTMLSpanElement>(null);
   // 🌟 初始化路由
   const router = useRouter();
 
+  // 打字机特效直接写 DOM：视觉逐字显示不变，但没有 50ms 一次的重渲染
   useEffect(() => {
-    let i = 0;
-    setDisplayedLyric("");
+    const el = lyricTextRef.current;
+    if (!el) return;
+
+    el.textContent = '';
     const target = currentLyric || "";
     if (!target) return;
 
+    let i = 0;
     const typingInterval = setInterval(() => {
       if (i <= target.length) {
-        setDisplayedLyric(target.slice(0, i));
+        el.textContent = target.slice(0, i);
         i++;
       } else {
         clearInterval(typingInterval);
@@ -75,18 +102,13 @@ export default function CloudPlayer() {
     nextSong();
   };
 
-  const safeHandleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    e.stopPropagation();
-    handleSeek(e);
-  };
-
   return (
     <>
       <style>{`
         input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 12px; height: 12px; border-radius: 50%; background: #6366f1; cursor: pointer; transition: transform 0.1s; }
         input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.3); }
-        @keyframes safeWave { 0%, 100% { height: 4px; } 50% { height: 28px; } }
-        .safe-wave { animation: safeWave 1s ease-in-out infinite; transform-origin: bottom; will-change: height; }
+        @keyframes safeWave { 0%, 100% { transform: scaleY(0.143); } 50% { transform: scaleY(1); } }
+        .safe-wave { animation: safeWave 1s ease-in-out infinite; transform-origin: bottom; will-change: transform; }
       `}</style>
 
       {/* 🌟 终极逻辑：在外层 Div 直接绑定 onClick 进行页面跳转 */}
@@ -119,7 +141,7 @@ export default function CloudPlayer() {
         </div>
 
         <div className="relative z-10 mb-2 h-6 overflow-hidden">
-           <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400 truncate">{displayedLyric}</p>
+           <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400 truncate"><span ref={lyricTextRef} /></p>
         </div>
 
         <div className="relative z-10 mt-auto">
@@ -129,15 +151,7 @@ export default function CloudPlayer() {
              onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
              onPointerDown={(e) => { e.stopPropagation(); }}
           >
-            <span className="w-10 text-right">{formatTime(currentTime)}</span>
-            <input
-              type="range" min="0" max="100"
-              value={progress}
-              onChange={safeHandleSeek}
-              className="flex-1 h-1.5 bg-white/40 dark:bg-slate-700/50 rounded-full appearance-none outline-none cursor-pointer shadow-inner"
-              style={{ background: `linear-gradient(to right, #818cf8 ${progress}%, rgba(148,163,184,0.4) ${progress}%)` }}
-            />
-            <span className="w-10">{formatTime(duration)}</span>
+            <CloudPlayerSeekRow />
           </div>
 
           {/* 🌟 核心拦截：使用我们上面写的 safe 函数，阻止事件冒泡 */}

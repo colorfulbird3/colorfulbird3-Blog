@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { siteConfig } from '../siteConfig';
 
 interface DanmakuItem {
@@ -14,17 +14,22 @@ interface DanmakuItem {
 const DANMAKU_COUNT = 4;
 
 export default function DanmakuBackground() {
-  const danmakus = useMemo<DanmakuItem[]>(() => {
-    const list = siteConfig.danmakuList || [];
-    if (list.length === 0) return [];
+  // 随机内容放到挂载后再生成：避免服务端/客户端各随机一次导致水合失败
+  const [danmakus, setDanmakus] = useState<DanmakuItem[]>([]);
 
-    return Array.from({ length: DANMAKU_COUNT }).map((_, i) => ({
-      id: i,
-      text: list[Math.floor(Math.random() * list.length)],
-      top: Math.random() * 80 + 10,
-      duration: Math.random() * 16 + 28,
-      delay: -(Math.random() * 28),
-    }));
+  useEffect(() => {
+    const list = siteConfig.danmakuList || [];
+    if (list.length === 0) return;
+
+    setDanmakus(
+      Array.from({ length: DANMAKU_COUNT }).map((_, i) => ({
+        id: i,
+        text: list[Math.floor(Math.random() * list.length)],
+        top: Math.random() * 80 + 10,
+        duration: Math.random() * 16 + 28,
+        delay: -(Math.random() * 28),
+      }))
+    );
   }, []);
 
   if (danmakus.length === 0) return null;

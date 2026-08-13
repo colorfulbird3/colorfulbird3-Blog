@@ -77,10 +77,6 @@ interface MusicContextType {
   currentIndex: number;
   currentSong?: Song;
   isPlaying: boolean;
-  progress: number;
-  currentTime: number;
-  duration: number;
-  currentLyric: string;
   isLoading: boolean;
   volume: number;
   isMuted: boolean;
@@ -97,7 +93,21 @@ interface MusicContextType {
   togglePlayMode: () => void;
 }
 
+// 高频变化字段单独成 context：进度条 ~4Hz，时间/歌词 ≤1Hz。
+// 消费方按需订阅，避免播放时全树跟着 timeupdate 重渲染。
+interface MusicProgressContextType {
+  progress: number;
+}
+
+interface MusicTimingContextType {
+  currentTime: number;
+  duration: number;
+  currentLyric: string;
+}
+
 const MusicContext = createContext<MusicContextType | null>(null);
+const MusicProgressContext = createContext<MusicProgressContextType | null>(null);
+const MusicTimingContext = createContext<MusicTimingContextType | null>(null);
 
 function flattenLibrary() {
   const result: Array<MusicTrack & { sourcePlaylist?: string }> = [];
@@ -149,6 +159,7 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const [playMode, setPlayMode] = useState<PlayMode>('loop');
 
   const audioRef = useRef<HTMLAudioElement>(null);
+  const lastProgressUpdateRef = useRef(0);
 
   useEffect(() => {
     let alive = true;
@@ -405,9 +416,18 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     const now = audio.currentTime || 0;
     const total = audio.duration || 0;
 
-    setCurrentTime(now);
-    setDuration(total);
-    setProgress(total > 0 ? (now / total) * 100 : 0);
+    // 节流：进度/时间状态最多每 250ms 刷新一次；时间标签按整秒量化，
+    // 避免 timeupdate 每次触发都让所有订阅者重渲染。
+    if (performance.now() - lastProgressUpdateRef.current >= 250) {
+      lastProgressUpdateRef.current = performance.now();
+
+      setProgress(total > 0 ? (now / total) * 100 : 0);
+      setCurrentTime(Math.floor(now));
+
+      if (Math.abs(total - duration) > 0.05) {
+        setDuration(total);
+      }
+    }
 
     if (lyrics.length > 0) {
       let active = '';
@@ -450,16 +470,12 @@ export function MusicProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const value = useMemo<MusicContextType>(
+  const stableValue = useMemo<MusicContextType>(
     () => ({
       playlist,
       currentIndex,
       currentSong,
       isPlaying,
-      progress,
-      currentTime,
-      duration,
-      currentLyric,
       isLoading,
       volume,
       isMuted,
@@ -480,34 +496,43 @@ export function MusicProvider({ children }: { children: ReactNode }) {
       currentIndex,
       currentSong,
       isPlaying,
-      progress,
-      currentTime,
-      duration,
-      currentLyric,
       isLoading,
       volume,
       isMuted,
       playMode,
-      lyrics,
     ]
   );
 
-  return (
-    <MusicContext.Provider value={value}>
-      {children}
+  const progressValue = useMemo<MusicProgressContextType>(
+    () => ({ progress }),
+    [progress]
+  );
 
-      {currentSong && (
-        <audio
-          ref={audioRef}
-          src={currentSong.src}
-          preload="metadata"
-          onTimeUpdate={handleTimeUpdate}
-          onEnded={handleEnded}
-          onLoadedMetadata={handleTimeUpdate}
-          onPlay={() => setIsPlaying(true)}
-          onPause={() => setIsPlaying(false)}
-        />
-      )}
+  const timingValue = useMemo<MusicTimingContextType>(
+    () => ({ currentTime, duration, currentLyric }),
+    [currentTime, duration, currentLyric]
+  );
+
+  return (
+    <MusicContext.Provider value={stableValue}>
+      <MusicProgressContext.Provider value={progressValue}>
+        <MusicTimingContext.Provider value={timingValue}>
+          {children}
+
+          {currentSong && (
+            <audio
+              ref={audioRef}
+              src={currentSong.src}
+              preload="metadata"
+              onTimeUpdate={handleTimeUpdate}
+              onEnded={handleEnded}
+              onLoadedMetadata={handleTimeUpdate}
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
+            />
+          )}
+        </MusicTimingContext.Provider>
+      </MusicProgressContext.Provider>
     </MusicContext.Provider>
   );
 }
@@ -517,6 +542,26 @@ export const useMusic = () => {
 
   if (!context) {
     throw new Error('useMusic must be used within MusicProvider');
+  }
+
+  return context;
+};
+
+export const useMusicProgress = () => {
+  const context = useContext(MusicProgressContext);
+
+  if (!context) {
+    throw new Error('useMusicProgress must be used within MusicProvider');
+  }
+
+  return context;
+};
+
+export const useMusicTiming = () => {
+  const context = useContext(MusicTimingContext);
+
+  if (!context) {
+    throw new Error('useMusicTiming must be used within MusicProvider');
   }
 
   return context;
