@@ -31,10 +31,10 @@ export default function SplashScreen() {
       return () => window.clearTimeout(timer);
     }
 
-    // 停留时长略长于进度条动画（3.8s），让进度条完整走完再淡出
+    // 进度条 1.8s 走完后稍作停留再淡出
     const timer = setTimeout(() => {
       exitSplash();
-    }, 4200);
+    }, 2200);
     return () => clearTimeout(timer);
   }, []);
 
@@ -70,7 +70,7 @@ export default function SplashScreen() {
                 initial={{ width: "0%" }}
                 animate={{ width: ["0%", "22%", "48%", "72%", "90%", "100%"] }}
                 transition={{
-                  duration: 3.8,
+                  duration: 1.8,
                   times: [0, 0.18, 0.4, 0.62, 0.82, 1],
                   ease: "easeInOut",
                 }}
