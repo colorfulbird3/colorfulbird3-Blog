@@ -31,9 +31,10 @@ export default function SplashScreen() {
       return () => window.clearTimeout(timer);
     }
 
+    // 停留时长略长于进度条动画（3.8s），让进度条完整走完再淡出
     const timer = setTimeout(() => {
       exitSplash();
-    }, 2200);
+    }, 4200);
     return () => clearTimeout(timer);
   }, []);
 
@@ -64,12 +65,16 @@ export default function SplashScreen() {
             </h1>
             <p className="text-[10px] font-black text-slate-400 tracking-[0.5em] mb-12">INITIALIZING SYSTEM</p>
 
-            <div className="w-40 h-[1.5px] bg-slate-200 dark:bg-slate-800 relative">
+            <div className="w-56 h-[3px] bg-slate-200 dark:bg-slate-800 relative overflow-hidden rounded-full">
               <motion.div
                 initial={{ width: "0%" }}
-                animate={{ width: "100%" }}
-                transition={{ duration: 1.8, ease: "easeInOut" }}
-                className="absolute top-0 left-0 h-full bg-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.8)]"
+                animate={{ width: ["0%", "22%", "48%", "72%", "90%", "100%"] }}
+                transition={{
+                  duration: 3.8,
+                  times: [0, 0.18, 0.4, 0.62, 0.82, 1],
+                  ease: "easeInOut",
+                }}
+                className="absolute top-0 left-0 h-full rounded-full bg-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.8)]"
               />
             </div>
           </div>
